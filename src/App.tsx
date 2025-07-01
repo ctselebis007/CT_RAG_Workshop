@@ -9,6 +9,7 @@ function App() {
   const [config, setConfig] = useState<RAGConfig | null>(null);
   const [documents, setDocuments] = useState<ProcessedDocument[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [collectionStats, setCollectionStats] = useState({ totalDocuments: 0, totalChunks: 0 });
 
   const handleConfigSave = (newConfig: RAGConfig) => {
     setConfig(newConfig);
@@ -18,6 +19,7 @@ function App() {
     // Clear all documents when configuration is reset
     setDocuments([]);
     setIsProcessing(false);
+    setCollectionStats({ totalDocuments: 0, totalChunks: 0 });
   };
 
   const handleFilesProcessed = (newDocuments: ProcessedDocument[]) => {
@@ -28,6 +30,18 @@ function App() {
   const handleProcessingStart = () => {
     setIsProcessing(true);
   };
+
+  const handleStatsUpdate = (stats: { totalDocuments: number; totalChunks: number }) => {
+    setCollectionStats(stats);
+  };
+
+  // Calculate total stats from both local documents and collection stats
+  const localTotalChunks = documents.reduce((sum, doc) => sum + doc.chunks.length, 0);
+  const localTotalDocuments = documents.length;
+  
+  // Use the higher of collection stats or local stats to ensure we show the most current data
+  const totalDocuments = Math.max(collectionStats.totalDocuments, localTotalDocuments);
+  const totalChunks = Math.max(collectionStats.totalChunks, localTotalChunks);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-teal-50">
@@ -81,6 +95,7 @@ function App() {
               config={config}
               documents={documents}
               isProcessing={isProcessing}
+              onStatsUpdate={handleStatsUpdate}
             />
           </div>
 
@@ -100,6 +115,8 @@ function App() {
               isConfigured={!!config}
               hasDocuments={documents.length > 0}
               config={config}
+              totalDocuments={totalDocuments}
+              totalChunks={totalChunks}
             />
           </div>
         </div>

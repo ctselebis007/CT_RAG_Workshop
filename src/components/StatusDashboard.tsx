@@ -7,6 +7,7 @@ interface StatusDashboardProps {
   config: RAGConfig | null;
   documents: ProcessedDocument[];
   isProcessing: boolean;
+  onStatsUpdate?: (stats: { totalDocuments: number; totalChunks: number }) => void;
 }
 
 interface CollectionStats {
@@ -19,7 +20,8 @@ interface CollectionStats {
 export const StatusDashboard: React.FC<StatusDashboardProps> = ({ 
   config, 
   documents, 
-  isProcessing 
+  isProcessing,
+  onStatsUpdate
 }) => {
   const [collectionStats, setCollectionStats] = useState<CollectionStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
@@ -51,6 +53,14 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({
         if (result.success) {
           setCollectionStats(result.stats);
           setLastRefresh(new Date());
+          
+          // Notify parent component of stats update
+          if (onStatsUpdate) {
+            onStatsUpdate({
+              totalDocuments: result.stats.totalDocuments,
+              totalChunks: result.stats.totalChunks
+            });
+          }
         }
       }
     } catch (error) {
@@ -66,8 +76,21 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({
       fetchCollectionStats();
     } else {
       setCollectionStats(null);
+      if (onStatsUpdate) {
+        onStatsUpdate({ totalDocuments: 0, totalChunks: 0 });
+      }
     }
   }, [config]);
+
+  // Update parent when local documents change
+  useEffect(() => {
+    if (onStatsUpdate && !collectionStats) {
+      onStatsUpdate({
+        totalDocuments: localTotalDocuments,
+        totalChunks: localTotalChunks
+      });
+    }
+  }, [localTotalDocuments, localTotalChunks, collectionStats, onStatsUpdate]);
 
   // Use collection stats if available, otherwise fall back to local stats
   const displayTotalDocuments = collectionStats?.totalDocuments ?? localTotalDocuments;

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { MessageSquare, Send, Brain, Loader, FileText } from 'lucide-react';
+import { MessageSquare, Send, Brain, Loader, FileText, AlertTriangle } from 'lucide-react';
 import { RAGConfig } from './ConfigurationPanel';
 
 interface QAInterfaceProps {
   isConfigured: boolean;
   hasDocuments: boolean;
   config: RAGConfig | null;
+  totalDocuments: number;
+  totalChunks: number;
 }
 
 interface QAResponse {
@@ -13,20 +15,24 @@ interface QAResponse {
   llmResponse: string;
   sources?: string[];
   numRetrievedChunks?: number;
+  question: string;
 }
 
 export const QAInterface: React.FC<QAInterfaceProps> = ({ 
   isConfigured, 
   hasDocuments, 
-  config 
+  config,
+  totalDocuments,
+  totalChunks
 }) => {
   const [question, setQuestion] = useState('');
   const [responses, setResponses] = useState<QAResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async () => {
-    if (!question.trim() || !isConfigured || !hasDocuments || !config) return;
+    if (!question.trim() || !isConfigured || !config) return;
 
+    const currentQuestion = question.trim();
     setIsLoading(true);
     
     try {
@@ -36,7 +42,7 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          question: question.trim(),
+          question: currentQuestion,
           config: config,
           useCustomPrompt: false // Always use standard prompt
         }),
@@ -50,6 +56,7 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
       
       if (result.success) {
         const newResponse: QAResponse = {
+          question: currentQuestion,
           vectorSearchResult: result.vectorSearchResult,
           llmResponse: result.llmResponse,
           sources: result.sources || [],
@@ -66,6 +73,7 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
       
       // Show error response
       const errorResponse: QAResponse = {
+        question: currentQuestion,
         vectorSearchResult: 'Error retrieving documents',
         llmResponse: `Sorry, I encountered an error: ${error.message}`,
         sources: [],
@@ -78,7 +86,9 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
     }
   };
 
-  const isDisabled = !isConfigured || !hasDocuments || isLoading;
+  // Check if system is ready for questions
+  const isSystemReady = isConfigured && (totalDocuments > 0 || totalChunks > 0);
+  const isDisabled = !isSystemReady || isLoading;
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
@@ -92,19 +102,48 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
         </div>
       </div>
 
+      {/* Status Messages */}
       {!isConfigured && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-          <p className="text-amber-800 font-medium">
-            Please configure MongoDB and OpenAI settings first.
-          </p>
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600" />
+            <p className="text-amber-800 font-medium">
+              Please configure MongoDB and OpenAI settings first.
+            </p>
+          </div>
         </div>
       )}
 
-      {isConfigured && !hasDocuments && (
+      {isConfigured && totalDocuments === 0 && totalChunks === 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <p className="text-blue-800 font-medium">
-            Upload and process some documents before asking questions.
-          </p>
+          <div className="flex items-center gap-3">
+            <FileText className="w-5 h-5 text-blue-600" />
+            <div>
+              <p className="text-blue-800 font-medium">
+                Upload and process some documents before asking questions.
+              </p>
+              <p className="text-blue-700 text-sm mt-1">
+                The system will be ready once documents are processed and stored in the database.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* System Ready Indicator */}
+      {isSystemReady && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-3">
+            <Brain className="w-5 h-5 text-green-600" />
+            <div>
+              <p className="text-green-800 font-medium">
+                System Ready! You can now ask questions.
+              </p>
+              <p className="text-green-700 text-sm mt-1">
+                {totalDocuments} documents with {totalChunks} text chunks available for search.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -116,9 +155,13 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && !isDisabled && handleSubmit()}
-            placeholder="Ask a question about your documents..."
+            placeholder={
+              isSystemReady 
+                ? "Ask a question about your documents..." 
+                : "Configure system and upload documents to start asking questions..."
+            }
             disabled={isDisabled}
-            className="w-full pl-4 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full pl-4 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50"
           />
           <button
             onClick={handleSubmit}
@@ -133,25 +176,39 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
           </button>
         </div>
 
-        {/* Standard Prompt Info */}
-        <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg">
-          <Brain className="w-4 h-4 text-amber-600" />
-          <span className="text-sm font-medium text-amber-800">Standard AI Response Mode</span>
-        </div>
+        {/* AI Response Mode Indicator */}
+        {isSystemReady && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+            <Brain className="w-4 h-4 text-amber-600" />
+            <span className="text-sm font-medium text-amber-800">Standard AI Response Mode</span>
+            <span className="text-xs text-amber-600 ml-auto">
+              Ready to search {totalChunks} chunks
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Responses */}
       {responses.length > 0 && (
         <div className="space-y-6">
-          <h3 className="text-lg font-semibold text-gray-900">Recent Questions</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Questions & Answers</h3>
           {responses.map((response, index) => (
             <div key={index} className="border border-gray-200 rounded-lg p-6 space-y-4">
+              {/* Question */}
+              <div className="bg-blue-50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <MessageSquare className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-800">Your Question</span>
+                </div>
+                <p className="text-blue-900 font-medium">{response.question}</p>
+              </div>
+
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center">
                     <Brain className="w-3 h-3" />
                   </div>
-                  <span className="text-sm font-medium text-gray-600">Standard Response</span>
+                  <span className="text-sm font-medium text-gray-600">AI Response</span>
                 </div>
                 {response.numRetrievedChunks && (
                   <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
@@ -186,8 +243,8 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
               {/* LLM Response */}
               <div className="bg-amber-50 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <MessageSquare className="w-4 h-4 text-amber-600" />
-                  <span className="text-sm font-medium text-amber-800">AI Response</span>
+                  <Brain className="w-4 h-4 text-amber-600" />
+                  <span className="text-sm font-medium text-amber-800">AI Answer</span>
                 </div>
                 <p className="text-gray-800 whitespace-pre-wrap">{response.llmResponse}</p>
               </div>
@@ -196,14 +253,26 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
         </div>
       )}
 
-      {responses.length === 0 && isConfigured && hasDocuments && (
+      {responses.length === 0 && isSystemReady && (
         <div className="text-center py-12">
           <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500 mb-2">
             Ask your first question to get started with your documents.
           </p>
           <p className="text-sm text-gray-400">
-            Now supports PDF, TXT, CSV, DOC, and DOCX files!
+            Now supports PDF, TXT, CSV, DOC, DOCX, XLS, XLSX, and PPTX files!
+          </p>
+        </div>
+      )}
+
+      {responses.length === 0 && !isSystemReady && isConfigured && (
+        <div className="text-center py-12">
+          <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500 mb-2">
+            Upload documents to enable the Q&A interface.
+          </p>
+          <p className="text-sm text-gray-400">
+            The system will automatically detect when documents are available.
           </p>
         </div>
       )}

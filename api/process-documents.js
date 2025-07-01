@@ -1,9 +1,13 @@
 import { MongoClient } from 'mongodb';
 import { PDFLoader } from 'langchain/document_loaders/fs/pdf';
+import { CSVLoader } from 'langchain/document_loaders/fs/csv';
+import { TextLoader } from 'langchain/document_loaders/fs/text';
+import { DocxLoader } from 'langchain/document_loaders/fs/docx';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import mammoth from 'mammoth';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,7 +42,7 @@ export default async function handler(req, res) {
     const processedDocuments = [];
     
     for (const file of files) {
-      console.log(`Processing ${file.name} with LangChain PyPDFLoader...`);
+      console.log(`Processing ${file.name} (${file.type}) with LangChain...`);
       
       // Create temporary file from base64 content
       const tempDir = path.join(__dirname, '../temp');
@@ -47,19 +51,53 @@ export default async function handler(req, res) {
       }
       
       const tempFilePath = path.join(tempDir, `temp_${Date.now()}_${file.name}`);
-      const pdfBuffer = Buffer.from(file.content, 'base64');
-      fs.writeFileSync(tempFilePath, pdfBuffer);
+      const fileBuffer = Buffer.from(file.content, 'base64');
+      fs.writeFileSync(tempFilePath, fileBuffer);
       
       try {
-        // Use LangChain PDFLoader to load and split by pages
-        const loader = new PDFLoader(tempFilePath, {
-          splitPages: true, // This creates one document per page
-        });
+        let docs = [];
+        const fileExtension = file.name.toLowerCase().split('.').pop();
         
-        const docs = await loader.load();
-        console.log(`Loaded ${docs.length} pages from ${file.name}`);
+        // Process different file types
+        switch (fileExtension) {
+          case 'pdf':
+            const pdfLoader = new PDFLoader(tempFilePath, { splitPages: true });
+            docs = await pdfLoader.load();
+            break;
+            
+          case 'csv':
+            const csvLoader = new CSVLoader(tempFilePath);
+            docs = await csvLoader.load();
+            // For CSV, each row becomes a document
+            break;
+            
+          case 'txt':
+            const txtLoader = new TextLoader(tempFilePath);
+            docs = await txtLoader.load();
+            break;
+            
+          case 'docx':
+            const docxLoader = new DocxLoader(tempFilePath);
+            docs = await docxLoader.load();
+            break;
+            
+          case 'doc':
+            // Handle legacy .doc files using mammoth
+            const docBuffer = fs.readFileSync(tempFilePath);
+            const docResult = await mammoth.extractRawText({ buffer: docBuffer });
+            docs = [{
+              pageContent: docResult.value,
+              metadata: { source: file.name, page: 1 }
+            }];
+            break;
+            
+          default:
+            throw new Error(`Unsupported file type: ${fileExtension}`);
+        }
         
-        // Optional: Further split large pages into smaller chunks
+        console.log(`Loaded ${docs.length} documents from ${file.name}`);
+        
+        // Split documents into smaller chunks for better retrieval
         const textSplitter = new RecursiveCharacterTextSplitter({
           chunkSize: 1000,
           chunkOverlap: 200,
@@ -78,10 +116,11 @@ export default async function handler(req, res) {
               embedding: embedding,
               metadata: {
                 source: file.name,
-                page: doc.metadata.page || Math.floor(index / (splitDocs.length / docs.length)) + 1,
+                fileType: fileExtension.toUpperCase(),
+                page: doc.metadata.page || Math.floor(index / Math.max(1, splitDocs.length / docs.length)) + 1,
                 chunk_index: index,
                 total_chunks: splitDocs.length,
-                original_page_count: docs.length
+                original_document_count: docs.length
               }
             };
           })
@@ -95,6 +134,7 @@ export default async function handler(req, res) {
         processedDocuments.push({
           id: generateId(),
           name: file.name,
+          type: fileExtension.toUpperCase(),
           chunks: chunksWithEmbeddings.map((chunk, index) => ({
             id: generateId(),
             content: chunk.text,
@@ -112,10 +152,13 @@ export default async function handler(req, res) {
     
     await mongoClient.close();
     
+    const totalChunks = processedDocuments.reduce((sum, doc) => sum + doc.chunks.length, 0);
+    const fileTypes = [...new Set(processedDocuments.map(doc => doc.type))];
+    
     res.status(200).json({ 
       success: true, 
       documents: processedDocuments,
-      message: `Processed ${processedDocuments.length} documents successfully using LangChain PyPDFLoader`
+      message: `Processed ${processedDocuments.length} documents (${fileTypes.join(', ')}) into ${totalChunks} chunks using LangChain`
     });
     
   } catch (error) {

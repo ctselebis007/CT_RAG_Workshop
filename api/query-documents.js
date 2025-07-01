@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { question, config, useCustomPrompt = false } = req.body;
+    const { question, config } = req.body;
     
     // Generate embedding for the question
     const questionEmbedding = await generateEmbedding(question, config.openaiApiKey);
@@ -48,7 +48,8 @@ export default async function handler(req, res) {
     if (searchResults.length > 0) {
       // Combine multiple relevant chunks for better context
       retrievedContext = searchResults.map((result, index) => {
-        const source = `[Source ${index + 1}: ${result.metadata.source}, Page ${result.metadata.page}]`;
+        const fileType = result.metadata.fileType || 'UNKNOWN';
+        const source = `[Source ${index + 1}: ${result.metadata.source} (${fileType}), Page ${result.metadata.page}]`;
         contextSources.push(source);
         return `${source}\n${result.text}`;
       }).join('\n\n---\n\n');
@@ -56,19 +57,14 @@ export default async function handler(req, res) {
       retrievedContext = 'No relevant documents found.';
     }
     
-    // Generate response using OpenAI
-    const llmResponse = await generateLLMResponse(
-      question, 
-      retrievedContext, 
-      config.openaiApiKey, 
-      useCustomPrompt
-    );
+    // Generate response using OpenAI with standard prompt only
+    const llmResponse = await generateLLMResponse(question, retrievedContext, config.openaiApiKey);
     
     res.status(200).json({
       success: true,
       vectorSearchResult: retrievedContext,
       llmResponse: llmResponse,
-      isCustomPrompt: useCustomPrompt,
+      isCustomPrompt: false,
       sources: contextSources,
       numRetrievedChunks: searchResults.length
     });
@@ -104,28 +100,15 @@ async function generateEmbedding(text, apiKey) {
   return data.data[0].embedding;
 }
 
-async function generateLLMResponse(question, context, apiKey, useCustomPrompt) {
-  let prompt;
-  
-  if (useCustomPrompt) {
-    prompt = `I want you to act as a rapper. You have to give the answer as if it was an American rap song, everything should be in rhyme.
-
-Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
+async function generateLLMResponse(question, context, apiKey) {
+  // Use only standard prompt
+  const prompt = `Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
 
 Context: ${context}
 
 Question: ${question}
 
 Helpful Answer:`;
-  } else {
-    prompt = `Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
-
-Context: ${context}
-
-Question: ${question}
-
-Helpful Answer:`;
-  }
   
   const response = await fetch('https://api.openai.com/v1/completions', {
     method: 'POST',

@@ -20,7 +20,9 @@
     "langchain": "^0.1.25",
     "@langchain/community": "^0.0.34",
     "pdf-parse": "^1.1.1",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "csv-parser": "^3.0.0",
+    "mammoth": "^1.6.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, File, X, AlertCircle, CheckCircle, Loader, Info } from 'lucide-react';
+import { Upload, File, X, AlertCircle, CheckCircle, Loader, Info, FileText, FileSpreadsheet } from 'lucide-react';
 import { RAGConfig } from './ConfigurationPanel';
 
 interface DocumentUploadProps {
@@ -24,6 +24,17 @@ export interface DocumentChunk {
   };
 }
 
+const SUPPORTED_FILE_TYPES = {
+  'application/pdf': { ext: 'PDF', icon: FileText, color: 'text-red-500' },
+  'text/plain': { ext: 'TXT', icon: FileText, color: 'text-gray-500' },
+  'text/csv': { ext: 'CSV', icon: FileSpreadsheet, color: 'text-green-500' },
+  'application/csv': { ext: 'CSV', icon: FileSpreadsheet, color: 'text-green-500' },
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { ext: 'DOCX', icon: FileText, color: 'text-blue-500' },
+  'application/msword': { ext: 'DOC', icon: FileText, color: 'text-blue-600' }
+};
+
+const ACCEPTED_EXTENSIONS = ['.pdf', '.txt', '.csv', '.doc', '.docx'];
+
 export const DocumentUpload: React.FC<DocumentUploadProps> = ({ 
   onFilesProcessed, 
   onProcessingStart,
@@ -35,6 +46,30 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   const [processingStatus, setProcessingStatus] = useState<string>('');
   const [showPermissionError, setShowPermissionError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isFileSupported = (file: File): boolean => {
+    const hasValidType = Object.keys(SUPPORTED_FILE_TYPES).includes(file.type);
+    const hasValidExtension = ACCEPTED_EXTENSIONS.some(ext => 
+      file.name.toLowerCase().endsWith(ext)
+    );
+    return hasValidType || hasValidExtension;
+  };
+
+  const getFileIcon = (file: File) => {
+    const fileInfo = SUPPORTED_FILE_TYPES[file.type];
+    if (fileInfo) return fileInfo;
+    
+    // Fallback based on extension
+    const extension = file.name.toLowerCase().split('.').pop();
+    switch (extension) {
+      case 'pdf': return { ext: 'PDF', icon: FileText, color: 'text-red-500' };
+      case 'txt': return { ext: 'TXT', icon: FileText, color: 'text-gray-500' };
+      case 'csv': return { ext: 'CSV', icon: FileSpreadsheet, color: 'text-green-500' };
+      case 'docx': return { ext: 'DOCX', icon: FileText, color: 'text-blue-500' };
+      case 'doc': return { ext: 'DOC', icon: FileText, color: 'text-blue-600' };
+      default: return { ext: 'FILE', icon: FileText, color: 'text-gray-400' };
+    }
+  };
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -51,9 +86,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     e.stopPropagation();
     setDragActive(false);
     
-    const droppedFiles = Array.from(e.dataTransfer.files).filter(
-      file => file.type === 'application/pdf'
-    );
+    const droppedFiles = Array.from(e.dataTransfer.files).filter(isFileSupported);
     
     if (droppedFiles.length > 0) {
       setFiles(prev => [...prev, ...droppedFiles]);
@@ -62,9 +95,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const selectedFiles = Array.from(e.target.files).filter(
-        file => file.type === 'application/pdf'
-      );
+      const selectedFiles = Array.from(e.target.files).filter(isFileSupported);
       setFiles(prev => [...prev, ...selectedFiles]);
     }
   };
@@ -79,7 +110,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       reader.readAsDataURL(file);
       reader.onload = () => {
         const result = reader.result as string;
-        // Remove the data:application/pdf;base64, prefix
+        // Remove the data URL prefix to get just the base64 content
         const base64 = result.split(',')[1];
         resolve(base64);
       };
@@ -117,6 +148,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       const filesData = await Promise.all(
         files.map(async (file) => ({
           name: file.name,
+          type: file.type,
           content: await fileToBase64(file)
         }))
       );
@@ -206,7 +238,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         </div>
         <div>
           <h2 className="text-xl font-semibold text-gray-900">Document Upload</h2>
-          <p className="text-gray-600">Upload PDF documents to create embeddings</p>
+          <p className="text-gray-600">Upload documents to create embeddings</p>
         </div>
       </div>
 
@@ -217,6 +249,34 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           </p>
         </div>
       )}
+
+      {/* Supported File Types Info */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div className="flex items-start gap-3">
+          <Info className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <h3 className="text-blue-800 font-semibold mb-2">Supported File Types</h3>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-red-500" />
+                <span className="text-blue-700">PDF Documents</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-gray-500" />
+                <span className="text-blue-700">Text Files (.txt)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="w-4 h-4 text-green-500" />
+                <span className="text-blue-700">CSV Files</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-blue-500" />
+                <span className="text-blue-700">Word Documents (.doc, .docx)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Permission Error Alert */}
       {showPermissionError && (
@@ -258,7 +318,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           ref={fileInputRef}
           type="file"
           multiple
-          accept="application/pdf"
+          accept=".pdf,.txt,.csv,.doc,.docx,application/pdf,text/plain,text/csv,application/csv,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           onChange={handleFileSelect}
           disabled={isDisabled}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
@@ -266,10 +326,10 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         
         <Upload className={`w-12 h-12 mx-auto mb-4 ${isDisabled ? 'text-gray-300' : 'text-gray-400'}`} />
         <p className={`text-lg font-medium mb-2 ${isDisabled ? 'text-gray-400' : 'text-gray-900'}`}>
-          Drop PDF files here or click to browse
+          Drop files here or click to browse
         </p>
         <p className={`${isDisabled ? 'text-gray-400' : 'text-gray-500'}`}>
-          Support for multiple PDF documents up to 10MB each
+          Support for PDF, TXT, CSV, DOC, and DOCX files up to 10MB each
         </p>
       </div>
 
@@ -280,27 +340,37 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
             Selected Files ({files.length})
           </h3>
           <div className="space-y-2">
-            {files.map((file, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-              >
-                <div className="flex items-center gap-3">
-                  <File className="w-5 h-5 text-red-500" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                    <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => removeFile(index)}
-                  disabled={isProcessing}
-                  className="text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            {files.map((file, index) => {
+              const fileInfo = getFileIcon(file);
+              const IconComponent = fileInfo.icon;
+              
+              return (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                 >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
+                  <div className="flex items-center gap-3">
+                    <IconComponent className={`w-5 h-5 ${fileInfo.color}`} />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{file.name}</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500">{formatFileSize(file.size)}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded ${fileInfo.color} bg-opacity-10`}>
+                          {fileInfo.ext}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => removeFile(index)}
+                    disabled={isProcessing}
+                    className="text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

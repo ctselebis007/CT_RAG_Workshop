@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageSquare, Send, Brain, Zap, Loader, FileText, ExternalLink } from 'lucide-react';
+import { MessageSquare, Send, Brain, Loader, FileText } from 'lucide-react';
 import { RAGConfig } from './ConfigurationPanel';
 
 interface QAInterfaceProps {
@@ -11,7 +11,6 @@ interface QAInterfaceProps {
 interface QAResponse {
   vectorSearchResult: string;
   llmResponse: string;
-  isCustomPrompt: boolean;
   sources?: string[];
   numRetrievedChunks?: number;
 }
@@ -24,9 +23,8 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
   const [question, setQuestion] = useState('');
   const [responses, setResponses] = useState<QAResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'standard' | 'custom'>('standard');
 
-  const handleSubmit = async (useCustomPrompt: boolean = false) => {
+  const handleSubmit = async () => {
     if (!question.trim() || !isConfigured || !hasDocuments || !config) return;
 
     setIsLoading(true);
@@ -40,7 +38,7 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
         body: JSON.stringify({
           question: question.trim(),
           config: config,
-          useCustomPrompt: useCustomPrompt
+          useCustomPrompt: false // Always use standard prompt
         }),
       });
 
@@ -54,7 +52,6 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
         const newResponse: QAResponse = {
           vectorSearchResult: result.vectorSearchResult,
           llmResponse: result.llmResponse,
-          isCustomPrompt: result.isCustomPrompt,
           sources: result.sources || [],
           numRetrievedChunks: result.numRetrievedChunks || 0
         };
@@ -71,7 +68,6 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
       const errorResponse: QAResponse = {
         vectorSearchResult: 'Error retrieving documents',
         llmResponse: `Sorry, I encountered an error: ${error.message}`,
-        isCustomPrompt: useCustomPrompt,
         sources: [],
         numRetrievedChunks: 0
       };
@@ -107,7 +103,7 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
       {isConfigured && !hasDocuments && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <p className="text-blue-800 font-medium">
-            Upload and process some PDF documents before asking questions.
+            Upload and process some documents before asking questions.
           </p>
         </div>
       )}
@@ -119,13 +115,13 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
             type="text"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && !isDisabled && handleSubmit(activeTab === 'custom')}
+            onKeyPress={(e) => e.key === 'Enter' && !isDisabled && handleSubmit()}
             placeholder="Ask a question about your documents..."
             disabled={isDisabled}
             className="w-full pl-4 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <button
-            onClick={() => handleSubmit(activeTab === 'custom')}
+            onClick={handleSubmit}
             disabled={isDisabled || !question.trim()}
             className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 text-gray-400 hover:text-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
@@ -137,30 +133,10 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
           </button>
         </div>
 
-        {/* Prompt Mode Tabs */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setActiveTab('standard')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === 'standard'
-                ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            <Brain className="w-4 h-4" />
-            Standard Prompt
-          </button>
-          <button
-            onClick={() => setActiveTab('custom')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === 'custom'
-                ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            <Zap className="w-4 h-4" />
-            Rap Song Mode
-          </button>
+        {/* Standard Prompt Info */}
+        <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+          <Brain className="w-4 h-4 text-amber-600" />
+          <span className="text-sm font-medium text-amber-800">Standard AI Response Mode</span>
         </div>
       </div>
 
@@ -172,16 +148,10 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
             <div key={index} className="border border-gray-200 rounded-lg p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                    response.isCustomPrompt 
-                      ? 'bg-purple-100 text-purple-600' 
-                      : 'bg-blue-100 text-blue-600'
-                  }`}>
-                    {response.isCustomPrompt ? <Zap className="w-3 h-3" /> : <Brain className="w-3 h-3" />}
+                  <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center">
+                    <Brain className="w-3 h-3" />
                   </div>
-                  <span className="text-sm font-medium text-gray-600">
-                    {response.isCustomPrompt ? 'Rap Song Mode' : 'Standard Response'}
-                  </span>
+                  <span className="text-sm font-medium text-gray-600">Standard Response</span>
                 </div>
                 {response.numRetrievedChunks && (
                   <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
@@ -194,7 +164,7 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <FileText className="w-4 h-4 text-gray-500" />
-                  <span className="text-sm font-medium text-gray-700">Retrieved Context (LangChain PyPDFLoader)</span>
+                  <span className="text-sm font-medium text-gray-700">Retrieved Context</span>
                 </div>
                 <div className="text-sm text-gray-600 whitespace-pre-wrap max-h-40 overflow-y-auto">
                   {response.vectorSearchResult}
@@ -233,7 +203,7 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
             Ask your first question to get started with your documents.
           </p>
           <p className="text-sm text-gray-400">
-            Now powered by LangChain PyPDFLoader for better document processing!
+            Now supports PDF, TXT, CSV, DOC, and DOCX files!
           </p>
         </div>
       )}

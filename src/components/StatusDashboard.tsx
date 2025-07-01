@@ -54,7 +54,7 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({
           setCollectionStats(result.stats);
           setLastRefresh(new Date());
           
-          // Notify parent component of stats update
+          // Always notify parent component of stats update when we get fresh data from DB
           if (onStatsUpdate) {
             onStatsUpdate({
               totalDocuments: result.stats.totalDocuments,
@@ -82,7 +82,7 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({
     }
   }, [config]);
 
-  // Update parent when local documents change
+  // Update parent when local documents change (but only if we don't have collection stats)
   useEffect(() => {
     if (onStatsUpdate && !collectionStats) {
       onStatsUpdate({

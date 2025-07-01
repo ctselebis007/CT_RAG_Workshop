@@ -9,7 +9,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import mammoth from 'mammoth';
 import XLSX from 'xlsx';
-import pptx2json from 'pptx2json';
+import yauzl from 'yauzl';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -114,36 +114,21 @@ export default async function handler(req, res) {
             break;
             
           case 'pptx':
-            // Handle PowerPoint files
+            // Handle PowerPoint files using yauzl to extract XML
             try {
-              const pptxData = await pptx2json.toJson(tempFilePath);
-              
-              docs = pptxData.slides.map((slide, index) => {
-                // Extract text from slide elements
-                let slideText = '';
-                
-                if (slide.elements) {
-                  slide.elements.forEach(element => {
-                    if (element.type === 'text' && element.text) {
-                      slideText += element.text + '\n';
-                    }
-                  });
+              const pptxText = await extractPowerPointText(tempFilePath);
+              docs = [{
+                pageContent: pptxText,
+                metadata: { 
+                  source: file.name, 
+                  page: 1
                 }
-                
-                return {
-                  pageContent: slideText || `Slide ${index + 1} content`,
-                  metadata: { 
-                    source: file.name, 
-                    slide: index + 1,
-                    page: index + 1
-                  }
-                };
-              });
+              }];
             } catch (pptxError) {
               console.warn(`Error processing PPTX file ${file.name}:`, pptxError);
               // Fallback: create a single document with basic info
               docs = [{
-                pageContent: `PowerPoint presentation: ${file.name}`,
+                pageContent: `PowerPoint presentation: ${file.name}. Content could not be extracted.`,
                 metadata: { source: file.name, page: 1 }
               }];
             }
@@ -229,6 +214,63 @@ export default async function handler(req, res) {
       error: error.message || 'Failed to process documents with LangChain'
     });
   }
+}
+
+// Function to extract text from PowerPoint files
+async function extractPowerPointText(filePath) {
+  return new Promise((resolve, reject) => {
+    let extractedText = '';
+    
+    yauzl.open(filePath, { lazyEntries: true }, (err, zipfile) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      
+      zipfile.readEntry();
+      
+      zipfile.on('entry', (entry) => {
+        // Look for slide XML files
+        if (entry.fileName.startsWith('ppt/slides/slide') && entry.fileName.endsWith('.xml')) {
+          zipfile.openReadStream(entry, (err, readStream) => {
+            if (err) {
+              zipfile.readEntry();
+              return;
+            }
+            
+            let xmlContent = '';
+            readStream.on('data', (chunk) => {
+              xmlContent += chunk.toString();
+            });
+            
+            readStream.on('end', () => {
+              // Extract text from XML using regex (basic approach)
+              const textMatches = xmlContent.match(/<a:t[^>]*>([^<]*)<\/a:t>/g);
+              if (textMatches) {
+                textMatches.forEach(match => {
+                  const text = match.replace(/<[^>]*>/g, '').trim();
+                  if (text) {
+                    extractedText += text + ' ';
+                  }
+                });
+              }
+              zipfile.readEntry();
+            });
+          });
+        } else {
+          zipfile.readEntry();
+        }
+      });
+      
+      zipfile.on('end', () => {
+        resolve(extractedText.trim() || 'PowerPoint content could not be extracted');
+      });
+      
+      zipfile.on('error', (err) => {
+        reject(err);
+      });
+    });
+  });
 }
 
 async function generateEmbedding(text, apiKey) {

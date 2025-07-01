@@ -24,7 +24,8 @@
     "mammoth": "^1.6.0",
     "d3-dsv": "^2.0.0",
     "xlsx": "^0.18.5",
-    "pptx2json": "^2.0.0"
+    "officegen": "^0.6.5",
+    "yauzl": "^2.10.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

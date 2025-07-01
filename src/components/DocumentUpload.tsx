@@ -37,6 +37,7 @@ const SUPPORTED_FILE_TYPES = {
 };
 
 const ACCEPTED_EXTENSIONS = ['.pdf', '.txt', '.csv', '.doc', '.docx', '.xls', '.xlsx', '.pptx'];
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB in bytes
 
 export const DocumentUpload: React.FC<DocumentUploadProps> = ({ 
   onFilesProcessed, 
@@ -47,6 +48,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   const [files, setFiles] = useState<File[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
+  const [fileErrors, setFileErrors] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isFileSupported = (file: File): boolean => {
@@ -55,6 +57,18 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       file.name.toLowerCase().endsWith(ext)
     );
     return hasValidType || hasValidExtension;
+  };
+
+  const validateFile = (file: File): string | null => {
+    if (!isFileSupported(file)) {
+      return `Unsupported file type: ${file.name}`;
+    }
+    
+    if (file.size > MAX_FILE_SIZE) {
+      return `File too large: ${file.name} (${formatFileSize(file.size)}). Maximum size is 100MB.`;
+    }
+    
+    return null;
   };
 
   const getFileIcon = (file: File) => {
@@ -91,17 +105,38 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     e.stopPropagation();
     setDragActive(false);
     
-    const droppedFiles = Array.from(e.dataTransfer.files).filter(isFileSupported);
-    
-    if (droppedFiles.length > 0) {
-      setFiles(prev => [...prev, ...droppedFiles]);
-    }
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    processNewFiles(droppedFiles);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const selectedFiles = Array.from(e.target.files).filter(isFileSupported);
-      setFiles(prev => [...prev, ...selectedFiles]);
+      const selectedFiles = Array.from(e.target.files);
+      processNewFiles(selectedFiles);
+    }
+  };
+
+  const processNewFiles = (newFiles: File[]) => {
+    const errors: string[] = [];
+    const validFiles: File[] = [];
+
+    newFiles.forEach(file => {
+      const error = validateFile(file);
+      if (error) {
+        errors.push(error);
+      } else {
+        validFiles.push(file);
+      }
+    });
+
+    setFileErrors(errors);
+    if (validFiles.length > 0) {
+      setFiles(prev => [...prev, ...validFiles]);
+    }
+
+    // Clear errors after 5 seconds
+    if (errors.length > 0) {
+      setTimeout(() => setFileErrors([]), 5000);
     }
   };
 
@@ -223,13 +258,13 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         </div>
       )}
 
-      {/* Supported File Types Info */}
+      {/* File Size and Type Info */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
         <div className="flex items-start gap-3">
           <Info className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
           <div>
-            <h3 className="text-blue-800 font-semibold mb-2">Supported File Types</h3>
-            <div className="grid grid-cols-2 gap-2 text-sm">
+            <h3 className="text-blue-800 font-semibold mb-2">Supported File Types & Limits</h3>
+            <div className="grid grid-cols-2 gap-2 text-sm mb-3">
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-red-500" />
                 <span className="text-blue-700">PDF Documents</span>
@@ -255,9 +290,34 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
                 <span className="text-blue-700">PowerPoint (.pptx)</span>
               </div>
             </div>
+            <div className="bg-blue-100 rounded-lg p-3">
+              <p className="text-blue-800 font-medium text-sm">
+                📁 Maximum file size: <span className="font-bold">100MB per file</span>
+              </p>
+              <p className="text-blue-700 text-xs mt-1">
+                Large files will be automatically split into smaller chunks for optimal processing.
+              </p>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* File Validation Errors */}
+      {fileErrors.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <h3 className="text-red-800 font-semibold mb-2">File Upload Errors</h3>
+              <ul className="text-red-700 text-sm space-y-1">
+                {fileErrors.map((error, index) => (
+                  <li key={index}>• {error}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Upload Area */}
       <div
@@ -288,7 +348,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           Drop files here or click to browse
         </p>
         <p className={`${isDisabled ? 'text-gray-400' : 'text-gray-500'}`}>
-          Support for PDF, TXT, CSV, DOC, DOCX, XLS, XLSX, and PPTX files up to 10MB each
+          Support for PDF, TXT, CSV, DOC, DOCX, XLS, XLSX, and PPTX files up to 100MB each
         </p>
       </div>
 
@@ -302,6 +362,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
             {files.map((file, index) => {
               const fileInfo = getFileIcon(file);
               const IconComponent = fileInfo.icon;
+              const isLargeFile = file.size > 50 * 1024 * 1024; // 50MB threshold for warning
               
               return (
                 <div
@@ -317,6 +378,11 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
                         <span className={`text-xs px-2 py-0.5 rounded ${fileInfo.color} bg-opacity-10`}>
                           {fileInfo.ext}
                         </span>
+                        {isLargeFile && (
+                          <span className="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-700">
+                            Large File
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

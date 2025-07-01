@@ -15,14 +15,28 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { mongodbUri, databaseName, collectionName } = req.body;
+    const { mongodbUri, databaseName, collectionName, reset = false } = req.body;
     
     const mongoClient = new MongoClient(mongodbUri);
     await mongoClient.connect();
     
     const db = mongoClient.db(databaseName);
     
-    // First, ensure the collection exists by creating it if it doesn't exist
+    if (reset) {
+      // Reset mode: Drop the collection if it exists
+      try {
+        await db.collection(collectionName).drop();
+        console.log(`Collection '${collectionName}' dropped successfully`);
+      } catch (error) {
+        if (error.codeName === 'NamespaceNotFound') {
+          console.log(`Collection '${collectionName}' did not exist, proceeding with creation`);
+        } else {
+          throw error;
+        }
+      }
+    }
+    
+    // Ensure the collection exists by creating it if it doesn't exist
     const collections = await db.listCollections({ name: collectionName }).toArray();
     
     if (collections.length === 0) {
@@ -67,7 +81,9 @@ export default async function handler(req, res) {
     
     res.status(200).json({ 
       success: true, 
-      message: 'Collection and vector search index created successfully'
+      message: reset 
+        ? 'Collection reset and vector search index created successfully'
+        : 'Collection and vector search index created successfully'
     });
     
   } catch (error) {

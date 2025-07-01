@@ -3,6 +3,7 @@ import cors from 'cors';
 import createVectorIndexHandler from '../api/create-vector-index.js';
 import processDocumentsHandler from '../api/process-documents.js';
 import queryDocumentsHandler from '../api/query-documents.js';
+import getCollectionStatsHandler from '../api/get-collection-stats.js';
 
 const app = express();
 const PORT = 3000;
@@ -33,6 +34,7 @@ const createExpressHandler = (handler) => {
 app.post('/api/create-vector-index', createExpressHandler(createVectorIndexHandler));
 app.post('/api/process-documents', createExpressHandler(processDocumentsHandler));
 app.post('/api/query-documents', createExpressHandler(queryDocumentsHandler));
+app.post('/api/get-collection-stats', createExpressHandler(getCollectionStatsHandler));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -46,6 +48,7 @@ app.listen(PORT, () => {
   console.log('  POST /api/create-vector-index');
   console.log('  POST /api/process-documents');
   console.log('  POST /api/query-documents');
+  console.log('  POST /api/get-collection-stats');
   console.log('  GET  /api/health');
 });
 

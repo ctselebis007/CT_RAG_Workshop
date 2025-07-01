@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Database, Key, User, Eye, EyeOff, CheckCircle, Loader, AlertCircle } from 'lucide-react';
+import { Database, Key, User, Eye, EyeOff, CheckCircle, Loader, AlertCircle, RotateCcw } from 'lucide-react';
 
 interface ConfigurationPanelProps {
   onConfigSave: (config: RAGConfig) => void;
+  onConfigReset: () => void;
   config: RAGConfig | null;
 }
 
@@ -13,7 +14,7 @@ export interface RAGConfig {
   collectionName: string;
 }
 
-export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfigSave, config }) => {
+export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfigSave, onConfigReset, config }) => {
   const [formData, setFormData] = useState<RAGConfig>({
     mongodbUri: config?.mongodbUri || '',
     openaiApiKey: config?.openaiApiKey || '',
@@ -26,6 +27,7 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
   });
   const [errors, setErrors] = useState<Partial<RAGConfig>>({});
   const [isCreatingIndex, setIsCreatingIndex] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [indexStatus, setIndexStatus] = useState<string>('');
 
   const validateForm = (): boolean => {
@@ -59,9 +61,9 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
     return Object.keys(newErrors).length === 0;
   };
 
-  const createCollectionAndIndex = async (configData: RAGConfig): Promise<boolean> => {
+  const createCollectionAndIndex = async (configData: RAGConfig, reset: boolean = false): Promise<boolean> => {
     try {
-      setIndexStatus('Creating collection and vector search index...');
+      setIndexStatus(reset ? 'Resetting collection and creating vector search index...' : 'Creating collection and vector search index...');
       
       const response = await fetch('/api/create-vector-index', {
         method: 'POST',
@@ -71,7 +73,8 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
         body: JSON.stringify({
           mongodbUri: configData.mongodbUri,
           databaseName: configData.databaseName,
-          collectionName: configData.collectionName
+          collectionName: configData.collectionName,
+          reset: reset
         }),
       });
 
@@ -91,7 +94,7 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
         throw new Error(result.error || 'Failed to create collection and vector search index');
       }
 
-      setIndexStatus('Collection and vector search index created successfully!');
+      setIndexStatus(reset ? 'Collection reset and vector search index created successfully!' : 'Collection and vector search index created successfully!');
       return true;
     } catch (error) {
       console.error('Error creating collection and vector index:', error);
@@ -108,8 +111,8 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
     setIndexStatus('');
 
     try {
-      // First, create the collection and vector search index
-      const indexCreated = await createCollectionAndIndex(formData);
+      // Create the collection and vector search index (preserve existing data)
+      const indexCreated = await createCollectionAndIndex(formData, false);
       
       if (indexCreated) {
         // If index creation was successful, save the configuration
@@ -126,6 +129,32 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
       setTimeout(() => setIndexStatus(''), 5000);
     } finally {
       setIsCreatingIndex(false);
+    }
+  };
+
+  const handleReset = async () => {
+    if (!validateForm()) return;
+
+    setIsResetting(true);
+    setIndexStatus('');
+
+    try {
+      // Reset the collection and create vector search index (delete existing data)
+      const indexCreated = await createCollectionAndIndex(formData, true);
+      
+      if (indexCreated) {
+        // If reset was successful, save the configuration and notify parent to reset documents
+        onConfigSave(formData);
+        onConfigReset(); // This will clear the documents state in the parent component
+        setTimeout(() => setIndexStatus(''), 3000);
+      } else {
+        setTimeout(() => setIndexStatus(''), 5000);
+      }
+    } catch (error) {
+      setIndexStatus(`Reset error: ${error.message}`);
+      setTimeout(() => setIndexStatus(''), 5000);
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -257,20 +286,42 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
           </p>
         </div>
 
-        <button
-          type="submit"
-          disabled={isCreatingIndex}
-          className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-6 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-        >
-          {isCreatingIndex ? (
-            <>
-              <Loader className="w-5 h-5 animate-spin" />
-              Setting up configuration...
-            </>
-          ) : (
-            'Save Configuration & Create Index'
-          )}
-        </button>
+        {/* Action Buttons */}
+        <div className="space-y-3">
+          <button
+            type="submit"
+            disabled={isCreatingIndex || isResetting}
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-6 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isCreatingIndex ? (
+              <>
+                <Loader className="w-5 h-5 animate-spin" />
+                Setting up configuration...
+              </>
+            ) : (
+              'Save Configuration & Create Index'
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleReset}
+            disabled={isCreatingIndex || isResetting}
+            className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3 px-6 rounded-lg font-medium hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isResetting ? (
+              <>
+                <Loader className="w-5 h-5 animate-spin" />
+                Resetting configuration...
+              </>
+            ) : (
+              <>
+                <RotateCcw className="w-5 h-5" />
+                Reset Configuration & Create Index
+              </>
+            )}
+          </button>
+        </div>
       </form>
 
       {/* Index Status Message */}
@@ -314,6 +365,19 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
           </div>
         </div>
       )}
+
+      {/* Reset Warning */}
+      <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <h3 className="text-red-800 font-semibold mb-2">Reset Configuration Warning</h3>
+            <p className="text-red-700 text-sm">
+              The "Reset Configuration & Create Index" button will permanently delete all existing documents and embeddings in the collection. This action cannot be undone. Use this option only when you want to start fresh with a clean collection.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

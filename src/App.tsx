@@ -14,6 +14,12 @@ function App() {
     setConfig(newConfig);
   };
 
+  const handleConfigReset = () => {
+    // Clear all documents when configuration is reset
+    setDocuments([]);
+    setIsProcessing(false);
+  };
+
   const handleFilesProcessed = (newDocuments: ProcessedDocument[]) => {
     setDocuments(prev => [...prev, ...newDocuments]);
     setIsProcessing(false);
@@ -69,6 +75,7 @@ function App() {
             <ConfigurationPanel 
               config={config}
               onConfigSave={handleConfigSave}
+              onConfigReset={handleConfigReset}
             />
             <StatusDashboard 
               config={config}

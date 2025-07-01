@@ -299,7 +299,7 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
                 Setting up configuration...
               </>
             ) : (
-              'Save Configuration & Create Index'
+              'Save Configuration'
             )}
           </button>
 
@@ -317,7 +317,7 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
             ) : (
               <>
                 <RotateCcw className="w-5 h-5" />
-                Reset Configuration & Create Index
+                Reset Configuration
               </>
             )}
           </button>
@@ -373,7 +373,7 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
           <div>
             <h3 className="text-red-800 font-semibold mb-2">Reset Configuration Warning</h3>
             <p className="text-red-700 text-sm">
-              The "Reset Configuration & Create Index" button will permanently delete all existing documents and embeddings in the collection. This action cannot be undone. Use this option only when you want to start fresh with a clean collection.
+              The "Reset Configuration" button will permanently delete all existing documents and embeddings in the collection. This action cannot be undone. Use this option only when you want to start fresh with a clean collection.
             </p>
           </div>
         </div>

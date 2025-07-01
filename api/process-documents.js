@@ -38,13 +38,26 @@ export default async function handler(req, res) {
     const db = mongoClient.db(config.databaseName);
     const collection = db.collection(config.collectionName);
     
-    // Clear existing documents for this collection
-    await collection.deleteMany({});
+    // Get existing document count before processing
+    const existingDocumentCount = await collection.countDocuments();
+    const existingUniqueSourcesCount = (await collection.distinct('metadata.source')).length;
+    
+    console.log(`Collection currently has ${existingDocumentCount} chunks from ${existingUniqueSourcesCount} documents`);
+    
+    // Do NOT clear existing documents - preserve them
+    // await collection.deleteMany({}); // REMOVED THIS LINE
     
     const processedDocuments = [];
     
     for (const file of files) {
       console.log(`Processing ${file.name} (${file.type}) with LangChain...`);
+      
+      // Check if this document already exists in the collection
+      const existingDoc = await collection.findOne({ 'metadata.source': file.name });
+      if (existingDoc) {
+        console.log(`Document ${file.name} already exists in collection, skipping...`);
+        continue;
+      }
       
       // Create temporary file from base64 content
       const tempDir = path.join(__dirname, '../temp');
@@ -171,9 +184,10 @@ export default async function handler(req, res) {
           })
         );
         
-        // Store in MongoDB
+        // Store in MongoDB (append to existing documents)
         if (chunksWithEmbeddings.length > 0) {
           await collection.insertMany(chunksWithEmbeddings);
+          console.log(`Added ${chunksWithEmbeddings.length} new chunks to collection`);
         }
         
         processedDocuments.push({
@@ -197,13 +211,26 @@ export default async function handler(req, res) {
     
     await mongoClient.close();
     
+    // Get final counts
+    const finalDocumentCount = existingDocumentCount + processedDocuments.reduce((sum, doc) => sum + doc.chunks.length, 0);
+    const newDocumentsCount = processedDocuments.length;
     const totalChunks = processedDocuments.reduce((sum, doc) => sum + doc.chunks.length, 0);
     const fileTypes = [...new Set(processedDocuments.map(doc => doc.type))];
+    
+    const message = newDocumentsCount > 0 
+      ? `Added ${newDocumentsCount} new documents (${fileTypes.join(', ')}) with ${totalChunks} chunks to existing collection. Total collection now has ${finalDocumentCount} chunks.`
+      : `No new documents were added. All uploaded files already exist in the collection.`;
     
     res.status(200).json({ 
       success: true, 
       documents: processedDocuments,
-      message: `Processed ${processedDocuments.length} documents (${fileTypes.join(', ')}) into ${totalChunks} chunks using LangChain`
+      message: message,
+      stats: {
+        newDocuments: newDocumentsCount,
+        newChunks: totalChunks,
+        existingChunks: existingDocumentCount,
+        totalChunks: finalDocumentCount
+      }
     });
     
   } catch (error) {

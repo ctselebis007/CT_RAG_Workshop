@@ -5,6 +5,7 @@ import { RAGConfig } from './ConfigurationPanel';
 interface DocumentUploadProps {
   onFilesProcessed: (documents: ProcessedDocument[]) => void;
   onProcessingStart: () => void;
+  onStatsUpdate?: (stats: { totalDocuments: number; totalChunks: number }) => void;
   isProcessing: boolean;
   config: RAGConfig | null;
 }
@@ -42,6 +43,7 @@ const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB in bytes
 export const DocumentUpload: React.FC<DocumentUploadProps> = ({ 
   onFilesProcessed, 
   onProcessingStart,
+  onStatsUpdate,
   isProcessing,
   config 
 }) => {
@@ -215,6 +217,20 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       if (result.success) {
         setProcessingStatus('Documents processed successfully!');
         onFilesProcessed(result.documents);
+        
+        // Update stats with the latest totals from the server response
+        if (onStatsUpdate && result.stats) {
+          // Calculate total unique documents by getting unique sources count
+          const uniqueDocuments = result.stats.existingChunks > 0 
+            ? await getUniqueDocumentCount(config) 
+            : result.stats.newDocuments;
+          
+          onStatsUpdate({
+            totalDocuments: uniqueDocuments,
+            totalChunks: result.stats.totalChunks
+          });
+        }
+        
         setFiles([]);
         
         setTimeout(() => setProcessingStatus(''), 3000);
@@ -226,6 +242,35 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       console.error('Error processing documents:', error);
       setTimeout(() => setProcessingStatus(''), 5000);
     }
+  };
+
+  // Helper function to get accurate unique document count from the database
+  const getUniqueDocumentCount = async (config: RAGConfig): Promise<number> => {
+    try {
+      const response = await fetch('/api/get-collection-stats', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          mongodbUri: config.mongodbUri,
+          databaseName: config.databaseName,
+          collectionName: config.collectionName
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          return result.stats.totalDocuments;
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching unique document count:', error);
+    }
+    
+    // Fallback: return 0 if we can't get the count
+    return 0;
   };
 
   const formatFileSize = (bytes: number): string => {

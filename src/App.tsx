@@ -104,6 +104,7 @@ function App() {
             <DocumentUpload 
               onFilesProcessed={handleFilesProcessed}
               onProcessingStart={handleProcessingStart}
+              onStatsUpdate={handleStatsUpdate}
               isProcessing={isProcessing}
               config={config}
             />

@@ -63,7 +63,8 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
           numRetrievedChunks: result.numRetrievedChunks || 0
         };
         
-        setResponses(prev => [newResponse, ...prev]);
+        // Keep only the last 3 responses (including the new one)
+        setResponses(prev => [newResponse, ...prev].slice(0, 3));
         setQuestion('');
       } else {
         throw new Error(result.error || 'Query failed');
@@ -80,7 +81,8 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
         numRetrievedChunks: 0
       };
       
-      setResponses(prev => [errorResponse, ...prev]);
+      // Keep only the last 3 responses (including the new error response)
+      setResponses(prev => [errorResponse, ...prev].slice(0, 3));
     } finally {
       setIsLoading(false);
     }
@@ -216,7 +218,12 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
       {responses.length > 0 && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Questions & Answers</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Recent Questions & Answers
+              <span className="text-sm font-normal text-gray-500 ml-2">
+                (Last {responses.length} of 3 max)
+              </span>
+            </h3>
             {isSystemReady && (
               <div className="text-sm text-gray-500">
                 Searching across {totalChunks} text chunks
@@ -230,6 +237,9 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
                 <div className="flex items-center gap-2 mb-2">
                   <MessageSquare className="w-4 h-4 text-blue-600" />
                   <span className="text-sm font-medium text-blue-800">Your Question</span>
+                  <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                    #{responses.length - index}
+                  </span>
                 </div>
                 <p className="text-blue-900 font-medium">{response.question}</p>
               </div>
@@ -281,6 +291,13 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
               </div>
             </div>
           ))}
+          
+          {/* Note about response limit */}
+          <div className="text-center py-2">
+            <p className="text-xs text-gray-400">
+              Only the last 3 questions and answers are shown to keep the interface clean.
+            </p>
+          </div>
         </div>
       )}
 

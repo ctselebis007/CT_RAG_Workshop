@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageSquare, Send, Brain, Zap, Loader, FileText } from 'lucide-react';
+import { MessageSquare, Send, Brain, Zap, Loader, FileText, ExternalLink } from 'lucide-react';
 import { RAGConfig } from './ConfigurationPanel';
 
 interface QAInterfaceProps {
@@ -12,6 +12,8 @@ interface QAResponse {
   vectorSearchResult: string;
   llmResponse: string;
   isCustomPrompt: boolean;
+  sources?: string[];
+  numRetrievedChunks?: number;
 }
 
 export const QAInterface: React.FC<QAInterfaceProps> = ({ 
@@ -52,7 +54,9 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
         const newResponse: QAResponse = {
           vectorSearchResult: result.vectorSearchResult,
           llmResponse: result.llmResponse,
-          isCustomPrompt: result.isCustomPrompt
+          isCustomPrompt: result.isCustomPrompt,
+          sources: result.sources || [],
+          numRetrievedChunks: result.numRetrievedChunks || 0
         };
         
         setResponses(prev => [newResponse, ...prev]);
@@ -67,7 +71,9 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
       const errorResponse: QAResponse = {
         vectorSearchResult: 'Error retrieving documents',
         llmResponse: `Sorry, I encountered an error: ${error.message}`,
-        isCustomPrompt: useCustomPrompt
+        isCustomPrompt: useCustomPrompt,
+        sources: [],
+        numRetrievedChunks: 0
       };
       
       setResponses(prev => [errorResponse, ...prev]);
@@ -164,26 +170,47 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
           <h3 className="text-lg font-semibold text-gray-900">Recent Questions</h3>
           {responses.map((response, index) => (
             <div key={index} className="border border-gray-200 rounded-lg p-6 space-y-4">
-              <div className="flex items-center gap-2">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                  response.isCustomPrompt 
-                    ? 'bg-purple-100 text-purple-600' 
-                    : 'bg-blue-100 text-blue-600'
-                }`}>
-                  {response.isCustomPrompt ? <Zap className="w-3 h-3" /> : <Brain className="w-3 h-3" />}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                    response.isCustomPrompt 
+                      ? 'bg-purple-100 text-purple-600' 
+                      : 'bg-blue-100 text-blue-600'
+                  }`}>
+                    {response.isCustomPrompt ? <Zap className="w-3 h-3" /> : <Brain className="w-3 h-3" />}
+                  </div>
+                  <span className="text-sm font-medium text-gray-600">
+                    {response.isCustomPrompt ? 'Rap Song Mode' : 'Standard Response'}
+                  </span>
                 </div>
-                <span className="text-sm font-medium text-gray-600">
-                  {response.isCustomPrompt ? 'Rap Song Mode' : 'Standard Response'}
-                </span>
+                {response.numRetrievedChunks && (
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                    {response.numRetrievedChunks} chunks retrieved
+                  </span>
+                )}
               </div>
               
               {/* Vector Search Result */}
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <FileText className="w-4 h-4 text-gray-500" />
-                  <span className="text-sm font-medium text-gray-700">Retrieved Context</span>
+                  <span className="text-sm font-medium text-gray-700">Retrieved Context (LangChain PyPDFLoader)</span>
                 </div>
-                <p className="text-sm text-gray-600">{response.vectorSearchResult}</p>
+                <div className="text-sm text-gray-600 whitespace-pre-wrap max-h-40 overflow-y-auto">
+                  {response.vectorSearchResult}
+                </div>
+                {response.sources && response.sources.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <span className="text-xs font-medium text-gray-500 mb-2 block">Sources:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {response.sources.map((source, idx) => (
+                        <span key={idx} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                          {source}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               
               {/* LLM Response */}
@@ -202,8 +229,11 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
       {responses.length === 0 && isConfigured && hasDocuments && (
         <div className="text-center py-12">
           <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500">
+          <p className="text-gray-500 mb-2">
             Ask your first question to get started with your documents.
+          </p>
+          <p className="text-sm text-gray-400">
+            Now powered by LangChain PyPDFLoader for better document processing!
           </p>
         </div>
       )}

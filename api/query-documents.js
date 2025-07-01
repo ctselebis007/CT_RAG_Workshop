@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     const db = mongoClient.db(config.databaseName);
     const collection = db.collection(config.collectionName);
     
-    // Perform vector search (simplified - in production you'd use $vectorSearch)
+    // Perform vector search to find the most relevant chunks
     const searchResults = await collection.aggregate([
       {
         $vectorSearch: {
@@ -35,7 +35,7 @@ export default async function handler(req, res) {
           path: 'embedding',
           queryVector: questionEmbedding,
           numCandidates: 100,
-          limit: 1
+          limit: 3 // Get top 3 most relevant chunks
         }
       }
     ]).toArray();
@@ -43,8 +43,15 @@ export default async function handler(req, res) {
     await mongoClient.close();
     
     let retrievedContext = '';
+    let contextSources = [];
+    
     if (searchResults.length > 0) {
-      retrievedContext = searchResults[0].text;
+      // Combine multiple relevant chunks for better context
+      retrievedContext = searchResults.map((result, index) => {
+        const source = `[Source ${index + 1}: ${result.metadata.source}, Page ${result.metadata.page}]`;
+        contextSources.push(source);
+        return `${source}\n${result.text}`;
+      }).join('\n\n---\n\n');
     } else {
       retrievedContext = 'No relevant documents found.';
     }
@@ -61,7 +68,9 @@ export default async function handler(req, res) {
       success: true,
       vectorSearchResult: retrievedContext,
       llmResponse: llmResponse,
-      isCustomPrompt: useCustomPrompt
+      isCustomPrompt: useCustomPrompt,
+      sources: contextSources,
+      numRetrievedChunks: searchResults.length
     });
     
   } catch (error) {

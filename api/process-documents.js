@@ -1,4 +1,12 @@
 import { MongoClient } from 'mongodb';
+import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf';
+import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export default async function handler(req, res) {
   // Set CORS headers
@@ -30,39 +38,76 @@ export default async function handler(req, res) {
     const processedDocuments = [];
     
     for (const file of files) {
-      console.log(`Processing ${file.name}...`);
+      console.log(`Processing ${file.name} with LangChain PyPDFLoader...`);
       
-      // Decode base64 PDF content
-      const pdfBuffer = Buffer.from(file.content, 'base64');
-      
-      // Extract text from PDF and create chunks
-      const chunks = await extractAndChunkPDF(pdfBuffer, file.name);
-      
-      // Generate embeddings for each chunk
-      const chunksWithEmbeddings = await Promise.all(
-        chunks.map(async (chunk) => {
-          const embedding = await generateEmbedding(chunk.content, config.openaiApiKey);
-          return {
-            text: chunk.content,
-            embedding: embedding,
-            metadata: {
-              source: chunk.metadata.source,
-              page: chunk.metadata.page
-            }
-          };
-        })
-      );
-      
-      // Store in MongoDB
-      if (chunksWithEmbeddings.length > 0) {
-        await collection.insertMany(chunksWithEmbeddings);
+      // Create temporary file from base64 content
+      const tempDir = path.join(__dirname, '../temp');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
       }
       
-      processedDocuments.push({
-        id: generateId(),
-        name: file.name,
-        chunks: chunks
-      });
+      const tempFilePath = path.join(tempDir, `temp_${Date.now()}_${file.name}`);
+      const pdfBuffer = Buffer.from(file.content, 'base64');
+      fs.writeFileSync(tempFilePath, pdfBuffer);
+      
+      try {
+        // Use LangChain PDFLoader to load and split by pages
+        const loader = new PDFLoader(tempFilePath, {
+          splitPages: true, // This creates one document per page
+        });
+        
+        const docs = await loader.load();
+        console.log(`Loaded ${docs.length} pages from ${file.name}`);
+        
+        // Optional: Further split large pages into smaller chunks
+        const textSplitter = new RecursiveCharacterTextSplitter({
+          chunkSize: 1000,
+          chunkOverlap: 200,
+        });
+        
+        const splitDocs = await textSplitter.splitDocuments(docs);
+        console.log(`Split into ${splitDocs.length} chunks`);
+        
+        // Process each document chunk
+        const chunksWithEmbeddings = await Promise.all(
+          splitDocs.map(async (doc, index) => {
+            const embedding = await generateEmbedding(doc.pageContent, config.openaiApiKey);
+            
+            return {
+              text: doc.pageContent,
+              embedding: embedding,
+              metadata: {
+                source: file.name,
+                page: doc.metadata.page || Math.floor(index / (splitDocs.length / docs.length)) + 1,
+                chunk_index: index,
+                total_chunks: splitDocs.length,
+                original_page_count: docs.length
+              }
+            };
+          })
+        );
+        
+        // Store in MongoDB
+        if (chunksWithEmbeddings.length > 0) {
+          await collection.insertMany(chunksWithEmbeddings);
+        }
+        
+        processedDocuments.push({
+          id: generateId(),
+          name: file.name,
+          chunks: chunksWithEmbeddings.map((chunk, index) => ({
+            id: generateId(),
+            content: chunk.text,
+            metadata: chunk.metadata
+          }))
+        });
+        
+      } finally {
+        // Clean up temporary file
+        if (fs.existsSync(tempFilePath)) {
+          fs.unlinkSync(tempFilePath);
+        }
+      }
     }
     
     await mongoClient.close();
@@ -70,63 +115,17 @@ export default async function handler(req, res) {
     res.status(200).json({ 
       success: true, 
       documents: processedDocuments,
-      message: `Processed ${processedDocuments.length} documents successfully`
+      message: `Processed ${processedDocuments.length} documents successfully using LangChain PyPDFLoader`
     });
     
   } catch (error) {
-    console.error('Error processing documents:', error);
+    console.error('Error processing documents with LangChain:', error);
     
     res.status(500).json({ 
       success: false, 
-      error: error.message || 'Failed to process documents'
+      error: error.message || 'Failed to process documents with LangChain'
     });
   }
-}
-
-async function extractAndChunkPDF(pdfBuffer, filename) {
-  try {
-    // Simple PDF text extraction (in production, you'd use a proper PDF parser)
-    // This is a simplified version - you might want to use pdf-parse or similar
-    const text = await extractTextFromPDF(pdfBuffer);
-    
-    // Split into pages (simplified chunking strategy)
-    const pages = text.split('\f'); // Form feed character typically separates pages
-    
-    const chunks = [];
-    
-    pages.forEach((pageContent, index) => {
-      if (pageContent.trim()) {
-        chunks.push({
-          id: generateId(),
-          content: pageContent.trim(),
-          metadata: {
-            source: filename,
-            page: index + 1
-          }
-        });
-      }
-    });
-    
-    return chunks;
-  } catch (error) {
-    console.error('Error extracting text from PDF:', error);
-    // Fallback: create a single chunk with placeholder content
-    return [{
-      id: generateId(),
-      content: `Content from ${filename} - PDF processing not fully implemented in this demo`,
-      metadata: {
-        source: filename,
-        page: 1
-      }
-    }];
-  }
-}
-
-async function extractTextFromPDF(pdfBuffer) {
-  // This is a simplified implementation
-  // In a real application, you would use a proper PDF parsing library
-  // For now, we'll return placeholder text
-  return "Sample extracted text from PDF. In a production environment, this would contain the actual PDF content extracted using a proper PDF parsing library like pdf-parse or similar.";
 }
 
 async function generateEmbedding(text, apiKey) {

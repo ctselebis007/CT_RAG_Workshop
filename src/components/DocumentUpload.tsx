@@ -44,7 +44,6 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   const [files, setFiles] = useState<File[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
-  const [showPermissionError, setShowPermissionError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isFileSupported = (file: File): boolean => {
@@ -141,7 +140,6 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
     onProcessingStart();
     setProcessingStatus('Converting files...');
-    setShowPermissionError(false);
     
     try {
       // Convert files to base64
@@ -153,40 +151,9 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         }))
       );
 
-      setProcessingStatus('Creating vector search index...');
-      
-      // Create vector search index first
-      const indexResponse = await fetch('/api/create-vector-index', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          mongodbUri: config.mongodbUri,
-          databaseName: config.databaseName,
-          collectionName: config.collectionName
-        }),
-      });
-
-      const indexResult = await safeParseJSON(indexResponse);
-
-      if (!indexResponse.ok) {
-        // Check if it's a permission error
-        if (indexResult.error && (
-          indexResult.error.includes('not authorized') ||
-          indexResult.error.includes('permission') ||
-          indexResult.error.includes('Unauthorized') ||
-          indexResult.error.includes('createSearchIndex')
-        )) {
-          setShowPermissionError(true);
-          throw new Error('MongoDB user lacks permissions to create search indexes');
-        }
-        throw new Error(indexResult.error || 'Failed to create vector search index');
-      }
-
       setProcessingStatus('Processing documents and generating embeddings...');
       
-      // Process documents
+      // Process documents (vector index should already be created during configuration)
       const response = await fetch('/api/process-documents', {
         method: 'POST',
         headers: {
@@ -277,28 +244,6 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Permission Error Alert */}
-      {showPermissionError && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
-            <div>
-              <h3 className="text-red-800 font-semibold mb-2">MongoDB Permission Error</h3>
-              <p className="text-red-700 text-sm mb-3">
-                Your MongoDB user doesn't have permission to create search indexes. To fix this:
-              </p>
-              <ol className="text-red-700 text-sm space-y-1 list-decimal list-inside">
-                <li>Go to your MongoDB Atlas dashboard</li>
-                <li>Navigate to "Database Access"</li>
-                <li>Find your database user and click "Edit"</li>
-                <li>Change the role to "Atlas Admin" or create a custom role with "createSearchIndex" privilege</li>
-                <li>Save the changes and try again</li>
-              </ol>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Upload Area */}
       <div

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Database, Key, User, Eye, EyeOff } from 'lucide-react';
+import { Database, Key, User, Eye, EyeOff, CheckCircle, Loader, AlertCircle } from 'lucide-react';
 
 interface ConfigurationPanelProps {
   onConfigSave: (config: RAGConfig) => void;
@@ -25,6 +25,8 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
     openai: false
   });
   const [errors, setErrors] = useState<Partial<RAGConfig>>({});
+  const [isCreatingIndex, setIsCreatingIndex] = useState(false);
+  const [indexStatus, setIndexStatus] = useState<string>('');
 
   const validateForm = (): boolean => {
     const newErrors: Partial<RAGConfig> = {};
@@ -57,10 +59,73 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const createVectorIndex = async (configData: RAGConfig): Promise<boolean> => {
+    try {
+      setIndexStatus('Creating vector search index...');
+      
+      const response = await fetch('/api/create-vector-index', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          mongodbUri: configData.mongodbUri,
+          databaseName: configData.databaseName,
+          collectionName: configData.collectionName
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        // Check if it's a permission error
+        if (result.error && (
+          result.error.includes('not authorized') ||
+          result.error.includes('permission') ||
+          result.error.includes('Unauthorized') ||
+          result.error.includes('createSearchIndex')
+        )) {
+          setIndexStatus('Permission error: MongoDB user lacks search index creation permissions');
+          return false;
+        }
+        throw new Error(result.error || 'Failed to create vector search index');
+      }
+
+      setIndexStatus('Vector search index created successfully!');
+      return true;
+    } catch (error) {
+      console.error('Error creating vector index:', error);
+      setIndexStatus(`Error creating index: ${error.message}`);
+      return false;
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      onConfigSave(formData);
+    if (!validateForm()) return;
+
+    setIsCreatingIndex(true);
+    setIndexStatus('');
+
+    try {
+      // First, create the vector search index
+      const indexCreated = await createVectorIndex(formData);
+      
+      if (indexCreated) {
+        // If index creation was successful, save the configuration
+        onConfigSave(formData);
+        setTimeout(() => setIndexStatus(''), 3000);
+      } else {
+        // Even if index creation failed due to permissions, still save config
+        // so users can proceed with document upload (they might have the index already)
+        onConfigSave(formData);
+        setTimeout(() => setIndexStatus(''), 5000);
+      }
+    } catch (error) {
+      setIndexStatus(`Configuration error: ${error.message}`);
+      setTimeout(() => setIndexStatus(''), 5000);
+    } finally {
+      setIsCreatingIndex(false);
     }
   };
 
@@ -194,11 +259,61 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
 
         <button
           type="submit"
-          className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-6 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl"
+          disabled={isCreatingIndex}
+          className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-6 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          Save Configuration
+          {isCreatingIndex ? (
+            <>
+              <Loader className="w-5 h-5 animate-spin" />
+              Setting up configuration...
+            </>
+          ) : (
+            'Save Configuration & Create Index'
+          )}
         </button>
       </form>
+
+      {/* Index Status Message */}
+      {indexStatus && (
+        <div className={`mt-4 p-4 rounded-lg flex items-center gap-3 ${
+          indexStatus.includes('Error') || indexStatus.includes('Permission error')
+            ? 'bg-red-50 text-red-700 border border-red-200'
+            : indexStatus.includes('successfully')
+            ? 'bg-green-50 text-green-700 border border-green-200'
+            : 'bg-blue-50 text-blue-700 border border-blue-200'
+        }`}>
+          {indexStatus.includes('Error') || indexStatus.includes('Permission error') ? (
+            <AlertCircle className="w-5 h-5" />
+          ) : indexStatus.includes('successfully') ? (
+            <CheckCircle className="w-5 h-5" />
+          ) : (
+            <Loader className="w-5 h-5 animate-spin" />
+          )}
+          <span className="font-medium">{indexStatus}</span>
+        </div>
+      )}
+
+      {/* Permission Help */}
+      {indexStatus.includes('Permission error') && (
+        <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <h3 className="text-amber-800 font-semibold mb-2">How to fix MongoDB permissions:</h3>
+              <ol className="text-amber-700 text-sm space-y-1 list-decimal list-inside">
+                <li>Go to your MongoDB Atlas dashboard</li>
+                <li>Navigate to "Database Access"</li>
+                <li>Find your database user and click "Edit"</li>
+                <li>Change the role to "Atlas Admin" or add "createSearchIndex" privilege</li>
+                <li>Save changes and try again</li>
+              </ol>
+              <p className="text-amber-700 text-sm mt-2">
+                Note: You can still proceed with document upload if the index already exists.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

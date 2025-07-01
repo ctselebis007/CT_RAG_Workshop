@@ -59,9 +59,9 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
     return Object.keys(newErrors).length === 0;
   };
 
-  const createVectorIndex = async (configData: RAGConfig): Promise<boolean> => {
+  const createCollectionAndIndex = async (configData: RAGConfig): Promise<boolean> => {
     try {
-      setIndexStatus('Creating vector search index...');
+      setIndexStatus('Creating collection and vector search index...');
       
       const response = await fetch('/api/create-vector-index', {
         method: 'POST',
@@ -88,14 +88,14 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
           setIndexStatus('Permission error: MongoDB user lacks search index creation permissions');
           return false;
         }
-        throw new Error(result.error || 'Failed to create vector search index');
+        throw new Error(result.error || 'Failed to create collection and vector search index');
       }
 
-      setIndexStatus('Vector search index created successfully!');
+      setIndexStatus('Collection and vector search index created successfully!');
       return true;
     } catch (error) {
-      console.error('Error creating vector index:', error);
-      setIndexStatus(`Error creating index: ${error.message}`);
+      console.error('Error creating collection and vector index:', error);
+      setIndexStatus(`Error creating collection and index: ${error.message}`);
       return false;
     }
   };
@@ -108,8 +108,8 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
     setIndexStatus('');
 
     try {
-      // First, create the vector search index
-      const indexCreated = await createVectorIndex(formData);
+      // First, create the collection and vector search index
+      const indexCreated = await createCollectionAndIndex(formData);
       
       if (indexCreated) {
         // If index creation was successful, save the configuration

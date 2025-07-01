@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, File, X, AlertCircle, CheckCircle, Loader, Info, FileText, FileSpreadsheet } from 'lucide-react';
+import { Upload, File, X, AlertCircle, CheckCircle, Loader, Info, FileText, FileSpreadsheet, Presentation } from 'lucide-react';
 import { RAGConfig } from './ConfigurationPanel';
 
 interface DocumentUploadProps {
@@ -30,10 +30,13 @@ const SUPPORTED_FILE_TYPES = {
   'text/csv': { ext: 'CSV', icon: FileSpreadsheet, color: 'text-green-500' },
   'application/csv': { ext: 'CSV', icon: FileSpreadsheet, color: 'text-green-500' },
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { ext: 'DOCX', icon: FileText, color: 'text-blue-500' },
-  'application/msword': { ext: 'DOC', icon: FileText, color: 'text-blue-600' }
+  'application/msword': { ext: 'DOC', icon: FileText, color: 'text-blue-600' },
+  'application/vnd.ms-excel': { ext: 'XLS', icon: FileSpreadsheet, color: 'text-emerald-500' },
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { ext: 'XLSX', icon: FileSpreadsheet, color: 'text-emerald-600' },
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': { ext: 'PPTX', icon: Presentation, color: 'text-orange-500' }
 };
 
-const ACCEPTED_EXTENSIONS = ['.pdf', '.txt', '.csv', '.doc', '.docx'];
+const ACCEPTED_EXTENSIONS = ['.pdf', '.txt', '.csv', '.doc', '.docx', '.xls', '.xlsx', '.pptx'];
 
 export const DocumentUpload: React.FC<DocumentUploadProps> = ({ 
   onFilesProcessed, 
@@ -66,6 +69,9 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       case 'csv': return { ext: 'CSV', icon: FileSpreadsheet, color: 'text-green-500' };
       case 'docx': return { ext: 'DOCX', icon: FileText, color: 'text-blue-500' };
       case 'doc': return { ext: 'DOC', icon: FileText, color: 'text-blue-600' };
+      case 'xls': return { ext: 'XLS', icon: FileSpreadsheet, color: 'text-emerald-500' };
+      case 'xlsx': return { ext: 'XLSX', icon: FileSpreadsheet, color: 'text-emerald-600' };
+      case 'pptx': return { ext: 'PPTX', icon: Presentation, color: 'text-orange-500' };
       default: return { ext: 'FILE', icon: FileText, color: 'text-gray-400' };
     }
   };
@@ -240,6 +246,14 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
                 <FileText className="w-4 h-4 text-blue-500" />
                 <span className="text-blue-700">Word Documents (.doc, .docx)</span>
               </div>
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+                <span className="text-blue-700">Excel Files (.xls, .xlsx)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Presentation className="w-4 h-4 text-orange-500" />
+                <span className="text-blue-700">PowerPoint (.pptx)</span>
+              </div>
             </div>
           </div>
         </div>
@@ -263,7 +277,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           ref={fileInputRef}
           type="file"
           multiple
-          accept=".pdf,.txt,.csv,.doc,.docx,application/pdf,text/plain,text/csv,application/csv,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          accept=".pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.pptx,application/pdf,text/plain,text/csv,application/csv,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.presentationml.presentation"
           onChange={handleFileSelect}
           disabled={isDisabled}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
@@ -274,7 +288,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           Drop files here or click to browse
         </p>
         <p className={`${isDisabled ? 'text-gray-400' : 'text-gray-500'}`}>
-          Support for PDF, TXT, CSV, DOC, and DOCX files up to 10MB each
+          Support for PDF, TXT, CSV, DOC, DOCX, XLS, XLSX, and PPTX files up to 10MB each
         </p>
       </div>
 

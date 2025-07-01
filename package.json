@@ -22,7 +22,9 @@
     "pdf-parse": "^1.1.1",
     "cors": "^2.8.5",
     "mammoth": "^1.6.0",
-    "d3-dsv": "^2.0.0"
+    "d3-dsv": "^2.0.0",
+    "xlsx": "^0.18.5",
+    "pptx2json": "^2.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

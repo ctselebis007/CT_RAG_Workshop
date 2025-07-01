@@ -8,6 +8,8 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import mammoth from 'mammoth';
+import XLSX from 'xlsx';
+import pptx2json from 'pptx2json';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -68,7 +70,6 @@ export default async function handler(req, res) {
           case 'csv':
             const csvLoader = new CSVLoader(tempFilePath);
             docs = await csvLoader.load();
-            // For CSV, each row becomes a document
             break;
             
           case 'txt':
@@ -89,6 +90,63 @@ export default async function handler(req, res) {
               pageContent: docResult.value,
               metadata: { source: file.name, page: 1 }
             }];
+            break;
+            
+          case 'xls':
+          case 'xlsx':
+            // Handle Excel files
+            const workbook = XLSX.readFile(tempFilePath);
+            const sheetNames = workbook.SheetNames;
+            
+            docs = sheetNames.map((sheetName, index) => {
+              const worksheet = workbook.Sheets[sheetName];
+              const csvData = XLSX.utils.sheet_to_csv(worksheet);
+              
+              return {
+                pageContent: csvData,
+                metadata: { 
+                  source: file.name, 
+                  sheet: sheetName,
+                  page: index + 1
+                }
+              };
+            });
+            break;
+            
+          case 'pptx':
+            // Handle PowerPoint files
+            try {
+              const pptxData = await pptx2json.toJson(tempFilePath);
+              
+              docs = pptxData.slides.map((slide, index) => {
+                // Extract text from slide elements
+                let slideText = '';
+                
+                if (slide.elements) {
+                  slide.elements.forEach(element => {
+                    if (element.type === 'text' && element.text) {
+                      slideText += element.text + '\n';
+                    }
+                  });
+                }
+                
+                return {
+                  pageContent: slideText || `Slide ${index + 1} content`,
+                  metadata: { 
+                    source: file.name, 
+                    slide: index + 1,
+                    page: index + 1
+                  }
+                };
+              });
+            } catch (pptxError) {
+              console.warn(`Error processing PPTX file ${file.name}:`, pptxError);
+              // Fallback: create a single document with basic info
+              docs = [{
+                pageContent: `PowerPoint presentation: ${file.name}`,
+                metadata: { source: file.name, page: 1 }
+              }];
+            }
             break;
             
           default:
@@ -118,6 +176,8 @@ export default async function handler(req, res) {
                 source: file.name,
                 fileType: fileExtension.toUpperCase(),
                 page: doc.metadata.page || Math.floor(index / Math.max(1, splitDocs.length / docs.length)) + 1,
+                sheet: doc.metadata.sheet || undefined,
+                slide: doc.metadata.slide || undefined,
                 chunk_index: index,
                 total_chunks: splitDocs.length,
                 original_document_count: docs.length

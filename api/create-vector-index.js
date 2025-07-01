@@ -21,6 +21,18 @@ export default async function handler(req, res) {
     await mongoClient.connect();
     
     const db = mongoClient.db(databaseName);
+    
+    // First, ensure the collection exists by creating it if it doesn't exist
+    const collections = await db.listCollections({ name: collectionName }).toArray();
+    
+    if (collections.length === 0) {
+      // Collection doesn't exist, create it
+      await db.createCollection(collectionName);
+      console.log(`Collection '${collectionName}' created successfully`);
+    } else {
+      console.log(`Collection '${collectionName}' already exists`);
+    }
+    
     const collection = db.collection(collectionName);
     
     // Create vector search index
@@ -55,15 +67,15 @@ export default async function handler(req, res) {
     
     res.status(200).json({ 
       success: true, 
-      message: 'Vector search index created successfully'
+      message: 'Collection and vector search index created successfully'
     });
     
   } catch (error) {
-    console.error('Error creating vector index:', error);
+    console.error('Error creating collection and vector index:', error);
     
     res.status(500).json({ 
       success: false, 
-      error: error.message || 'Failed to create vector index'
+      error: error.message || 'Failed to create collection and vector index'
     });
   }
 }

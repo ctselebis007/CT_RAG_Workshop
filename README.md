@@ -5,6 +5,7 @@ After cloning the repo
 1. Create a virtual environment:
 
     python3 -m venv myenv
+    
     source myenv/bin/activate
 
 2. Install dependecies

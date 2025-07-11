@@ -17,6 +17,15 @@ interface CollectionStats {
   documentTypes: Record<string, number>;
 }
 
+interface ProcessingStats {
+  fileName: string;
+  fileType: string;
+  fileSize: string;
+  status: string;
+  chunksCreated: number;
+  totalTime: number;
+  averageTimePerChunk: number;
+}
 export const StatusDashboard: React.FC<StatusDashboardProps> = ({ 
   config, 
   documents, 
@@ -26,6 +35,7 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({
   const [collectionStats, setCollectionStats] = useState<CollectionStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [recentProcessingStats, setRecentProcessingStats] = useState<ProcessingStats[]>([]);
 
   // Calculate local stats from documents prop
   const localTotalChunks = documents.reduce((sum, doc) => sum + doc.chunks.length, 0);
@@ -95,6 +105,16 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({
   // Use collection stats if available, otherwise fall back to local stats
   const displayTotalDocuments = collectionStats?.totalDocuments ?? localTotalDocuments;
   const displayTotalChunks = collectionStats?.totalChunks ?? localTotalChunks;
+  
+  // Update recent processing stats when documents change
+  useEffect(() => {
+    const newStats: ProcessingStats[] = documents
+      .filter(doc => doc.processingStats)
+      .map(doc => doc.processingStats!)
+      .slice(-3); // Keep only the last 3 processed documents
+    
+    setRecentProcessingStats(newStats);
+  }, [documents]);
   
   const getStatusColor = () => {
     if (!config) return 'text-red-500 bg-red-50 border-red-200';
@@ -230,6 +250,46 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({
               </p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Recent Processing Performance */}
+      {recentProcessingStats.length > 0 && (
+        <div className="mt-6 pt-4 border-t border-gray-200">
+          <h3 className="text-sm font-medium text-gray-700 mb-3">Recent Processing Performance</h3>
+          <div className="space-y-3">
+            {recentProcessingStats.map((stat, index) => (
+              <div key={index} className="bg-gray-50 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-900 truncate">{stat.fileName}</span>
+                  <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">
+                    {stat.fileType}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                  <div className="flex justify-between">
+                    <span>Size:</span>
+                    <span className="font-medium">{stat.fileSize}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Chunks:</span>
+                    <span className="font-medium">{stat.chunksCreated}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Total Time:</span>
+                    <span className="font-medium">{(stat.totalTime / 1000).toFixed(1)}s</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Per Chunk:</span>
+                    <span className="font-medium">{stat.averageTimePerChunk}ms</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 text-center mt-2">
+            Showing performance for last {recentProcessingStats.length} processed documents
+          </p>
         </div>
       )}
     </div>

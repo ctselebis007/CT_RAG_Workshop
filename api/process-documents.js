@@ -29,6 +29,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    const overallStartTime = Date.now();
     const { files, config } = req.body;
     
     // Connect to MongoDB
@@ -48,14 +49,25 @@ export default async function handler(req, res) {
     // await collection.deleteMany({}); // REMOVED THIS LINE
     
     const processedDocuments = [];
+    const processingStats = [];
     
     for (const file of files) {
+      const fileStartTime = Date.now();
       console.log(`Processing ${file.name} (${file.type}) with LangChain...`);
       
       // Check if this document already exists in the collection
       const existingDoc = await collection.findOne({ 'metadata.source': file.name });
       if (existingDoc) {
         console.log(`Document ${file.name} already exists in collection, skipping...`);
+        processingStats.push({
+          fileName: file.name,
+          status: 'skipped',
+          reason: 'Document already exists',
+          totalTime: 0,
+          chunkingTime: 0,
+          insertionTime: 0,
+          chunksCreated: 0
+        });
         continue;
       }
       
@@ -70,6 +82,7 @@ export default async function handler(req, res) {
       fs.writeFileSync(tempFilePath, fileBuffer);
       
       try {
+        const loadingStartTime = Date.now();
         let docs = [];
         const fileExtension = file.name.toLowerCase().split('.').pop();
         
@@ -151,8 +164,11 @@ export default async function handler(req, res) {
             throw new Error(`Unsupported file type: ${fileExtension}`);
         }
         
+        const loadingEndTime = Date.now();
+        const loadingTime = loadingEndTime - loadingStartTime;
         console.log(`Loaded ${docs.length} documents from ${file.name}`);
         
+        const chunkingStartTime = Date.now();
         // Split documents into smaller chunks for better retrieval
         const textSplitter = new RecursiveCharacterTextSplitter({
           chunkSize: 1000,
@@ -160,8 +176,11 @@ export default async function handler(req, res) {
         });
         
         const splitDocs = await textSplitter.splitDocuments(docs);
+        const chunkingEndTime = Date.now();
+        const chunkingTime = chunkingEndTime - chunkingStartTime;
         console.log(`Split into ${splitDocs.length} chunks`);
         
+        const embeddingStartTime = Date.now();
         // Process each document chunk
         const chunksWithEmbeddings = await Promise.all(
           splitDocs.map(async (doc, index) => {
@@ -183,12 +202,44 @@ export default async function handler(req, res) {
             };
           })
         );
+        const embeddingEndTime = Date.now();
+        const embeddingTime = embeddingEndTime - embeddingStartTime;
         
+        const insertionStartTime = Date.now();
         // Store in MongoDB (append to existing documents)
         if (chunksWithEmbeddings.length > 0) {
           await collection.insertMany(chunksWithEmbeddings);
           console.log(`Added ${chunksWithEmbeddings.length} new chunks to collection`);
         }
+        const insertionEndTime = Date.now();
+        const insertionTime = insertionEndTime - insertionStartTime;
+        
+        const fileEndTime = Date.now();
+        const totalFileTime = fileEndTime - fileStartTime;
+        
+        // Record processing statistics
+        processingStats.push({
+          fileName: file.name,
+          fileType: fileExtension.toUpperCase(),
+          fileSize: formatFileSize(fileBuffer.length),
+          status: 'processed',
+          chunksCreated: chunksWithEmbeddings.length,
+          originalDocuments: docs.length,
+          loadingTime: loadingTime,
+          chunkingTime: chunkingTime,
+          embeddingTime: embeddingTime,
+          insertionTime: insertionTime,
+          totalTime: totalFileTime,
+          averageTimePerChunk: Math.round(totalFileTime / chunksWithEmbeddings.length)
+        });
+        
+        console.log(`File processing stats for ${file.name}:`);
+        console.log(`  - Loading: ${loadingTime}ms`);
+        console.log(`  - Chunking: ${chunkingTime}ms`);
+        console.log(`  - Embedding: ${embeddingTime}ms`);
+        console.log(`  - Insertion: ${insertionTime}ms`);
+        console.log(`  - Total: ${totalFileTime}ms`);
+        console.log(`  - Avg per chunk: ${Math.round(totalFileTime / chunksWithEmbeddings.length)}ms`);
         
         processedDocuments.push({
           id: generateId(),
@@ -210,6 +261,9 @@ export default async function handler(req, res) {
     }
     
     await mongoClient.close();
+    
+    const overallEndTime = Date.now();
+    const overallProcessingTime = overallEndTime - overallStartTime;
     
     // Get final counts
     const finalDocumentCount = existingDocumentCount + processedDocuments.reduce((sum, doc) => sum + doc.chunks.length, 0);
@@ -308,6 +362,12 @@ async function generateEmbedding(text, apiKey) {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
+      processingStats: processingStats,
+      timing: {
+        overallProcessingTime: overallProcessingTime,
+        averageTimePerDocument: newDocumentsCount > 0 ? Math.round(overallProcessingTime / newDocumentsCount) : 0,
+        averageTimePerChunk: totalChunks > 0 ? Math.round(overallProcessingTime / totalChunks) : 0
+      }
       body: JSON.stringify({
         model: 'text-embedding-ada-002',
         input: text,
@@ -326,6 +386,14 @@ async function generateEmbedding(text, apiKey) {
   }
 }
 
+// Helper function to format file sizes
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
 function generateId() {
   return Math.random().toString(36).substr(2, 9);
 }

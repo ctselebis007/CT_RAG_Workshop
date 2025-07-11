@@ -14,6 +14,20 @@ export interface ProcessedDocument {
   id: string;
   name: string;
   chunks: DocumentChunk[];
+  processingStats?: {
+    fileName: string;
+    fileType: string;
+    fileSize: string;
+    status: string;
+    chunksCreated: number;
+    originalDocuments: number;
+    loadingTime: number;
+    chunkingTime: number;
+    embeddingTime: number;
+    insertionTime: number;
+    totalTime: number;
+    averageTimePerChunk: number;
+  };
 }
 
 export interface DocumentChunk {
@@ -217,6 +231,39 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       if (result.success) {
         setProcessingStatus('Documents processed successfully!');
         onFilesProcessed(result.documents);
+        
+        // Display processing statistics
+        if (result.processingStats && result.processingStats.length > 0) {
+          console.log('📊 Document Processing Statistics:');
+          console.log('=====================================');
+          
+          result.processingStats.forEach((stat, index) => {
+            if (stat.status === 'processed') {
+              console.log(`\n📄 Document ${index + 1}: ${stat.fileName}`);
+              console.log(`   File Type: ${stat.fileType}`);
+              console.log(`   File Size: ${stat.fileSize}`);
+              console.log(`   Chunks Created: ${stat.chunksCreated}`);
+              console.log(`   ⏱️  Timing Breakdown:`);
+              console.log(`      • Loading: ${stat.loadingTime}ms`);
+              console.log(`      • Chunking: ${stat.chunkingTime}ms`);
+              console.log(`      • Embedding: ${stat.embeddingTime}ms`);
+              console.log(`      • Insertion: ${stat.insertionTime}ms`);
+              console.log(`      • Total: ${stat.totalTime}ms`);
+              console.log(`      • Avg per chunk: ${stat.averageTimePerChunk}ms`);
+            } else if (stat.status === 'skipped') {
+              console.log(`\n⏭️  Skipped: ${stat.fileName} (${stat.reason})`);
+            }
+          });
+          
+          if (result.timing) {
+            console.log(`\n🎯 Overall Statistics:`);
+            console.log(`   Total Processing Time: ${result.timing.overallProcessingTime}ms`);
+            console.log(`   Average Time per Document: ${result.timing.averageTimePerDocument}ms`);
+            console.log(`   Average Time per Chunk: ${result.timing.averageTimePerChunk}ms`);
+          }
+          
+          console.log('\n=====================================');
+        }
         
         // Update stats with the latest totals from the server response
         if (onStatsUpdate && result.stats) {

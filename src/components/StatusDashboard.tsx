@@ -356,7 +356,6 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({
               </div>
             </div>
           </div>
-          </p>
         </div>
       )}
     </div>

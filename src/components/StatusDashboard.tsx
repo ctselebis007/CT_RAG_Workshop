@@ -256,39 +256,106 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({
       {/* Recent Processing Performance */}
       {recentProcessingStats.length > 0 && (
         <div className="mt-6 pt-4 border-t border-gray-200">
-          <h3 className="text-sm font-medium text-gray-700 mb-3">Recent Processing Performance</h3>
+          <h3 className="text-sm font-medium text-gray-700 mb-3">📊 Recent Processing Performance</h3>
           <div className="space-y-3">
             {recentProcessingStats.map((stat, index) => (
-              <div key={index} className="bg-gray-50 rounded-lg p-3">
+              <div key={index} className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-900 truncate">{stat.fileName}</span>
-                  <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">
+                  <span className="text-sm font-semibold text-blue-900 truncate max-w-[200px]" title={stat.fileName}>
+                    📄 {stat.fileName}
+                  </span>
+                  <span className="text-xs text-blue-700 bg-blue-200 px-2 py-1 rounded font-medium">
                     {stat.fileType}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                
+                {/* File Info Row */}
+                <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
                   <div className="flex justify-between">
-                    <span>Size:</span>
-                    <span className="font-medium">{stat.fileSize}</span>
+                    <span className="text-blue-600">📁 Size:</span>
+                    <span className="font-semibold text-blue-800">{stat.fileSize}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Chunks:</span>
-                    <span className="font-medium">{stat.chunksCreated}</span>
+                    <span className="text-blue-600">🧩 Chunks:</span>
+                    <span className="font-semibold text-blue-800">{stat.chunksCreated}</span>
+                  </div>
+                </div>
+                
+                {/* Timing Breakdown */}
+                <div className="bg-white rounded-lg p-3 border border-blue-100">
+                  <div className="text-xs font-medium text-blue-700 mb-2">⏱️ Timing Breakdown:</div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">• Loading:</span>
+                      <span className="font-medium text-gray-800">{stat.loadingTime}ms</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">• Chunking:</span>
+                      <span className="font-medium text-gray-800">{stat.chunkingTime}ms</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">• Embedding:</span>
+                      <span className="font-medium text-gray-800">{stat.embeddingTime}ms</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">• Insertion:</span>
+                      <span className="font-medium text-gray-800">{stat.insertionTime}ms</span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Summary Stats */}
+                <div className="grid grid-cols-2 gap-3 mt-3 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-indigo-600 font-medium">🎯 Total Time:</span>
+                    <span className="font-bold text-indigo-800">{(stat.totalTime / 1000).toFixed(1)}s</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Total Time:</span>
-                    <span className="font-medium">{(stat.totalTime / 1000).toFixed(1)}s</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Per Chunk:</span>
-                    <span className="font-medium">{stat.averageTimePerChunk}ms</span>
+                    <span className="text-indigo-600 font-medium">⚡ Per Chunk:</span>
+                    <span className="font-bold text-indigo-800">{stat.averageTimePerChunk}ms</span>
                   </div>
                 </div>
               </div>
             ))}
           </div>
-          <p className="text-xs text-gray-400 text-center mt-2">
-            Showing performance for last {recentProcessingStats.length} processed documents
+          <div className="text-center mt-3 p-2 bg-blue-50 rounded-lg border border-blue-200">
+            <p className="text-xs text-blue-600 font-medium">
+              📈 Showing detailed performance metrics for the last {recentProcessingStats.length} processed document{recentProcessingStats.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+        </div>
+      )}
+      
+      {/* Overall Processing Statistics (if available from last batch) */}
+      {recentProcessingStats.length > 1 && (
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <h3 className="text-sm font-medium text-gray-700 mb-3">🎯 Batch Processing Summary</h3>
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4">
+            <div className="grid grid-cols-1 gap-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-green-700">📊 Documents Processed:</span>
+                <span className="font-bold text-green-800">{recentProcessingStats.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-green-700">🧩 Total Chunks Created:</span>
+                <span className="font-bold text-green-800">
+                  {recentProcessingStats.reduce((sum, stat) => sum + stat.chunksCreated, 0)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-green-700">⏱️ Total Processing Time:</span>
+                <span className="font-bold text-green-800">
+                  {(recentProcessingStats.reduce((sum, stat) => sum + stat.totalTime, 0) / 1000).toFixed(1)}s
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-green-700">⚡ Avg Time per Document:</span>
+                <span className="font-bold text-green-800">
+                  {(recentProcessingStats.reduce((sum, stat) => sum + stat.totalTime, 0) / recentProcessingStats.length / 1000).toFixed(1)}s
+                </span>
+              </div>
+            </div>
+          </div>
           </p>
         </div>
       )}

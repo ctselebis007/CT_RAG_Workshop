@@ -265,6 +265,21 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           console.log('\n=====================================');
         }
         
+        // Store processing statistics for visual display
+        if (result.processingStats) {
+          // Update the documents with processing stats for visual display
+          const documentsWithStats = result.documents.map((doc, index) => {
+            const stat = result.processingStats.find(s => s.fileName === doc.name);
+            return {
+              ...doc,
+              processingStats: stat
+            };
+          });
+          onFilesProcessed(documentsWithStats);
+        } else {
+          onFilesProcessed(result.documents);
+        }
+        
         // Update stats with the latest totals from the server response
         if (onStatsUpdate && result.stats) {
           // Calculate total unique documents by getting unique sources count
@@ -277,7 +292,6 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
             totalChunks: result.stats.totalChunks
           });
         }
-        
         setFiles([]);
         
         setTimeout(() => setProcessingStatus(''), 3000);

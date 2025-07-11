@@ -239,13 +239,34 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({
         <div className="mt-6 pt-4 border-t border-gray-200">
           <h3 className="text-sm font-medium text-gray-700 mb-3">Recent Documents</h3>
           <div className="space-y-2">
-            {documents.slice(-5).map((doc) => (
-              <div key={doc.id} className="flex items-center justify-between text-sm">
+            {documents
+              .reduce((unique, doc) => {
+                // Only keep the latest version of each document (by name)
+                const existingIndex = unique.findIndex(d => d.name === doc.name);
+                if (existingIndex >= 0) {
+                  unique[existingIndex] = doc; // Replace with newer version
+                } else {
+                  unique.push(doc);
+                }
+                return unique;
+              }, [] as ProcessedDocument[])
+              .slice(-5)
+              .map((doc) => (
+              <div key={`${doc.name}-${doc.id}`} className="flex items-center justify-between text-sm">
                 <span className="text-gray-600 truncate">{doc.name}</span>
                 <span className="text-gray-400">{doc.chunks.length} chunks</span>
               </div>
             ))}
-            {documents.length > 5 && (
+            {documents
+              .reduce((unique, doc) => {
+                const existingIndex = unique.findIndex(d => d.name === doc.name);
+                if (existingIndex >= 0) {
+                  unique[existingIndex] = doc;
+                } else {
+                  unique.push(doc);
+                }
+                return unique;
+              }, [] as ProcessedDocument[]).length > 5 && (
               <p className="text-xs text-gray-400 text-center pt-2">
                 Showing 5 most recent documents
               </p>

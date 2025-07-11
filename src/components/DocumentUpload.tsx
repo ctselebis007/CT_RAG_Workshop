@@ -267,12 +267,12 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         
         // Store processing statistics for visual display
         if (result.processingStats) {
-          // Update the documents with processing stats for visual display
-          const documentsWithStats = result.documents.map((doc, index) => {
-            const stat = result.processingStats.find(s => s.fileName === doc.name);
+          // Match processing stats with documents and add them
+          const documentsWithStats = result.documents.map((doc) => {
+            const matchingStat = result.processingStats.find(stat => stat.fileName === doc.name);
             return {
               ...doc,
-              processingStats: stat
+              processingStats: matchingStat
             };
           });
           onFilesProcessed(documentsWithStats);

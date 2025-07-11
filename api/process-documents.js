@@ -278,6 +278,7 @@ export default async function handler(req, res) {
     res.status(200).json({ 
       success: true, 
       documents: processedDocuments,
+      processingStats: processingStats,
       message: message,
       stats: {
         newDocuments: newDocumentsCount,

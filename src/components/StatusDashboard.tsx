@@ -111,6 +111,7 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({
     const newStats: ProcessingStats[] = documents
       .filter(doc => doc.processingStats)
       .map(doc => doc.processingStats!)
+      .filter(stat => stat.status === 'processed') // Only show successfully processed documents
       .slice(-3); // Keep only the last 3 processed documents
     
     setRecentProcessingStats(newStats);

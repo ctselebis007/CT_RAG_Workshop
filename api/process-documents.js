@@ -362,12 +362,6 @@ async function generateEmbedding(text, apiKey) {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      processingStats: processingStats,
-      timing: {
-        overallProcessingTime: overallProcessingTime,
-        averageTimePerDocument: newDocumentsCount > 0 ? Math.round(overallProcessingTime / newDocumentsCount) : 0,
-        averageTimePerChunk: totalChunks > 0 ? Math.round(overallProcessingTime / totalChunks) : 0
-      }
       body: JSON.stringify({
         model: 'text-embedding-ada-002',
         input: text,

@@ -83,7 +83,80 @@ function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          {/* Configuration Panel */}
+          <div className="lg:col-span-1">
+            <ConfigurationPanel 
+              config={config}
+              onConfigSave={handleConfigSave}
+              onConfigReset={handleConfigReset}
+            />
+          </div>
+
+          {/* System Status - Below Configuration on lg, separate column on xl */}
+          <div className="lg:col-span-1 xl:col-span-1">
+            <div className="lg:hidden xl:block">
+              <StatusDashboard 
+                config={config}
+                documents={documents}
+                isProcessing={isProcessing}
+                onStatsUpdate={handleStatsUpdate}
+              />
+            </div>
+          </div>
+
+          {/* Document Upload */}
+          <div className="lg:col-span-1 xl:col-span-1">
+            <DocumentUpload 
+              onFilesProcessed={handleFilesProcessed}
+              onProcessingStart={handleProcessingStart}
+              onStatsUpdate={handleStatsUpdate}
+              isProcessing={isProcessing}
+              config={config}
+            />
+          </div>
+
+          {/* Q&A Interface */}
+          <div className="lg:col-span-1 xl:col-span-1">
+            <QAInterface 
+              isConfigured={!!config}
+              hasDocuments={documents.length > 0}
+              config={config}
+              totalDocuments={totalDocuments}
+              totalChunks={totalChunks}
+            />
+          </div>
+        </div>
+
+        {/* Status Dashboard for lg screens (hidden on xl) */}
+        <div className="hidden lg:block xl:hidden mt-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-1">
+              <StatusDashboard 
+                config={config}
+                documents={documents}
+                isProcessing={isProcessing}
+                onStatsUpdate={handleStatsUpdate}
+              />
+            </div>
+            <div className="lg:col-span-2">
+              {/* Empty space for balance */}
+            </div>
+          </div>
+        </div>
+
+        {/* Status Dashboard for mobile/tablet (below Configuration) */}
+        <div className="block lg:hidden mt-8">
+          <StatusDashboard 
+            config={config}
+            documents={documents}
+            isProcessing={isProcessing}
+            onStatsUpdate={handleStatsUpdate}
+          />
+        </div>
+
+        {/* Legacy layout structure for smaller screens */}
+        <div className="hidden">
           {/* Left Column - Configuration and Status */}
           <div className="space-y-8">
             <ConfigurationPanel 
@@ -99,7 +172,7 @@ function App() {
             />
           </div>
 
-          {/* Middle Column - Document Upload */}
+          {/* Document Upload */}
           <div>
             <DocumentUpload 
               onFilesProcessed={handleFilesProcessed}
@@ -110,7 +183,7 @@ function App() {
             />
           </div>
 
-          {/* Right Column - Q&A Interface */}
+          {/* Q&A Interface */}
           <div>
             <QAInterface 
               isConfigured={!!config}

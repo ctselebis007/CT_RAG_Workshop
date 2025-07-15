@@ -74,8 +74,9 @@ export default async function handler(req, res) {
     if (searchResults.length > 0) {
       // Combine multiple relevant chunks for better context
       retrievedContext = searchResults.map((result, index) => {
-        const fileType = result.metadata.fileType || 'UNKNOWN';
-        const source = `[Source ${index + 1}: ${result.metadata.source} (${fileType}), Page ${result.metadata.page}]`;
+        const metadata = result.metadata || {};
+        const fileType = metadata.fileType || 'UNKNOWN';
+        const source = `[Source ${index + 1}: ${metadata.source || 'Unknown'} (${fileType}), Page ${metadata.page || 1}]`;
         contextSources.push(source);
         return `${source}\n${result.text}`;
       }).join('\n\n---\n\n');

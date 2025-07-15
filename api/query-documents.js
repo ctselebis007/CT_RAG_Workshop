@@ -1,5 +1,18 @@
 import { MongoClient } from 'mongodb';
 
+// Helper function to determine embedding field path
+async function getEmbeddingFieldPath(collection) {
+  // Check for existing documents to determine field name
+  const sampleDoc = await collection.findOne({});
+  if (sampleDoc) {
+    if (sampleDoc.embeddingVector) return 'embeddingVector';
+    if (sampleDoc.embedding) return 'embedding';
+    if (sampleDoc.plot_embedding) return 'plot_embedding';
+  }
+  // Default to 'embedding' if no existing documents or field found
+  return 'embedding';
+}
+
 export default async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -27,12 +40,16 @@ export default async function handler(req, res) {
     const db = mongoClient.db(config.databaseName);
     const collection = db.collection(config.collectionName);
     
+    // Determine the embedding field path to use
+    const embeddingFieldPath = await getEmbeddingFieldPath(collection);
+    console.log(`Using embedding field path for search: ${embeddingFieldPath}`);
+    
     // Perform vector search to find the most relevant chunks
     const searchResults = await collection.aggregate([
       {
         $vectorSearch: {
           index: 'rag_demo_index',
-          path: 'embedding',
+          path: embeddingFieldPath,
           queryVector: questionEmbedding,
           numCandidates: 100,
           limit: 3 // Get top 3 most relevant chunks

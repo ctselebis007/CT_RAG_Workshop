@@ -14,6 +14,19 @@ import yauzl from 'yauzl';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Helper function to determine embedding field path
+async function getEmbeddingFieldPath(collection) {
+  // Check for existing documents to determine field name
+  const sampleDoc = await collection.findOne({});
+  if (sampleDoc) {
+    if (sampleDoc.embeddingVector) return 'embeddingVector';
+    if (sampleDoc.embedding) return 'embedding';
+    if (sampleDoc.plot_embedding) return 'plot_embedding';
+  }
+  // Default to 'embedding' if no existing documents or field found
+  return 'embedding';
+}
+
 export default async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -38,6 +51,10 @@ export default async function handler(req, res) {
     
     const db = mongoClient.db(config.databaseName);
     const collection = db.collection(config.collectionName);
+    
+    // Determine the embedding field path to use
+    const embeddingFieldPath = await getEmbeddingFieldPath(collection);
+    console.log(`Using embedding field path: ${embeddingFieldPath}`);
     
     // Get existing document count before processing
     const existingDocumentCount = await collection.countDocuments();
@@ -188,7 +205,7 @@ export default async function handler(req, res) {
             
             return {
               text: doc.pageContent,
-              embedding: embedding,
+              [embeddingFieldPath]: embedding,
               metadata: {
                 source: file.name,
                 fileType: fileExtension.toUpperCase(),
@@ -285,7 +302,8 @@ export default async function handler(req, res) {
         newChunks: totalChunks,
         existingChunks: existingDocumentCount,
         totalChunks: finalDocumentCount
-      }
+      },
+      embeddingField: embeddingFieldPath
     });
     
   } catch (error) {

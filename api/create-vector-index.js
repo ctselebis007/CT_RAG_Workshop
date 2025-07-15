@@ -72,13 +72,14 @@ export default async function handler(req, res) {
     // Create vector search index
     const indexDefinition = {
       name: 'rag_demo_index',
+      type: 'vectorSearch',
       definition: {
         fields: [
           {
-            numDimensions: 1536,
+            type: 'vector',
             path: embeddingFieldPath,
-            similarity: 'cosine',
-            type: 'vector'
+            numDimensions: 1536,
+            similarity: 'cosine'
           }
         ]
       }

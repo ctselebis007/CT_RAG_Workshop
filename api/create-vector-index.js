@@ -31,23 +31,25 @@ export default async function handler(req, res) {
       if (collections.length > 0) {
         // Collection exists, check for embedding field
         const collection = db.collection(collectionName);
-        const sampleDoc = await collection.findOne({});
-        
-        if (sampleDoc) {
-          if (sampleDoc.embeddingVector) {
-            embeddingFieldPath = 'embeddingVector';
-            console.log('✅ Detected existing embeddingVector field, using that for index');
-          } else if (sampleDoc.embedding) {
-            embeddingFieldPath = 'embedding';
-            console.log('✅ Detected existing embedding field, using that for index');
-          } else if (sampleDoc.plot_embedding) {
-            embeddingFieldPath = 'plot_embedding';
-            console.log('✅ Detected existing plot_embedding field, using that for index');
-          } else {
-            console.log('⚠️  No embedding field found in existing documents, using default: embedding');
-          }
+        // Check for each field type using filtered queries
+        const embeddingVectorDoc = await collection.findOne({ embeddingVector: { $exists: true } });
+        if (embeddingVectorDoc) {
+          embeddingFieldPath = 'embeddingVector';
+          console.log('✅ Found documents with embeddingVector field, using that for index');
         } else {
-          console.log('⚠️  Collection exists but is empty, using default field: embedding');
+          const embeddingDoc = await collection.findOne({ embedding: { $exists: true } });
+          if (embeddingDoc) {
+            embeddingFieldPath = 'embedding';
+            console.log('✅ Found documents with embedding field, using that for index');
+          } else {
+            const plotEmbeddingDoc = await collection.findOne({ plot_embedding: { $exists: true } });
+            if (plotEmbeddingDoc) {
+              embeddingFieldPath = 'plot_embedding';
+              console.log('✅ Found documents with plot_embedding field, using that for index');
+            } else {
+              console.log('⚠️  No embedding fields found in existing documents, using default: embedding');
+            }
+          }
         }
       } else {
         console.log('ℹ️  Collection does not exist, using default field: embedding');

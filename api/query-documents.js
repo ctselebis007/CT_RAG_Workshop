@@ -2,13 +2,22 @@ import { MongoClient } from 'mongodb';
 
 // Helper function to determine embedding field path
 async function getEmbeddingFieldPath(collection) {
-  // Check for existing documents to determine field name
-  const sampleDoc = await collection.findOne({});
-  if (sampleDoc) {
-    if (sampleDoc.embeddingVector) return 'embeddingVector';
-    if (sampleDoc.embedding) return 'embedding';
-    if (sampleDoc.plot_embedding) return 'plot_embedding';
+  // Check for each field type using filtered queries
+  const embeddingVectorDoc = await collection.findOne({ embeddingVector: { $exists: true } });
+  if (embeddingVectorDoc) {
+    return 'embeddingVector';
   }
+  
+  const embeddingDoc = await collection.findOne({ embedding: { $exists: true } });
+  if (embeddingDoc) {
+    return 'embedding';
+  }
+  
+  const plotEmbeddingDoc = await collection.findOne({ plot_embedding: { $exists: true } });
+  if (plotEmbeddingDoc) {
+    return 'plot_embedding';
+  }
+  
   // Default to 'embedding' if no existing documents or field found
   return 'embedding';
 }

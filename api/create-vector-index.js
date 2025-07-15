@@ -49,29 +49,48 @@ export default async function handler(req, res) {
     
     const collection = db.collection(collectionName);
     
+    // Check for existing embedding field in the collection
+    let embeddingFieldPath = 'embedding'; // default
+    
+    if (!reset) {
+      // Only check existing documents if not resetting
+      const sampleDoc = await collection.findOne({});
+      if (sampleDoc) {
+        if (sampleDoc.embeddingVector) {
+          embeddingFieldPath = 'embeddingVector';
+          console.log('Found existing embeddingVector field, using that for index');
+        } else if (sampleDoc.embedding) {
+          embeddingFieldPath = 'embedding';
+          console.log('Found existing embedding field, using that for index');
+        } else if (sampleDoc.plot_embedding) {
+          embeddingFieldPath = 'plot_embedding';
+          console.log('Found existing plot_embedding field, using that for index');
+        }
+      }
+    }
+    
     // Create vector search index
     const indexDefinition = {
       name: 'rag_demo_index',
       definition: {
-        mappings: {
-          dynamic: true,
-          fields: {
-            embedding: {
-              type: 'knnVector',
-              dimensions: 1536,
-              similarity: 'cosine'
-            }
+        fields: [
+          {
+            numDimensions: 1536,
+            path: embeddingFieldPath,
+            similarity: 'cosine',
+            type: 'vector'
           }
+        ]
         }
       }
     };
     
     try {
       await collection.createSearchIndex(indexDefinition);
-      console.log('Vector search index created successfully');
+      console.log(`Vector search index created successfully with field path: ${embeddingFieldPath}`);
     } catch (error) {
       if (error.codeName === 'IndexAlreadyExists') {
-        console.log('Vector search index already exists');
+        console.log(`Vector search index already exists with field path: ${embeddingFieldPath}`);
       } else {
         throw error;
       }
@@ -82,8 +101,9 @@ export default async function handler(req, res) {
     res.status(200).json({ 
       success: true, 
       message: reset 
-        ? 'Collection reset and vector search index created successfully'
-        : 'Collection and vector search index created successfully'
+        ? `Collection reset and vector search index created successfully with field: ${embeddingFieldPath}`
+        : `Collection and vector search index created successfully with field: ${embeddingFieldPath}`,
+      embeddingField: embeddingFieldPath
     });
     
   } catch (error) {

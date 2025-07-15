@@ -49,24 +49,23 @@ export default async function handler(req, res) {
     
     const collection = db.collection(collectionName);
     
-    // Check for existing embedding field in the collection
+    // Always check for existing embedding field in the collection (even during reset)
     let embeddingFieldPath = 'embedding'; // default
     
-    if (!reset) {
-      // Only check existing documents if not resetting
-      const sampleDoc = await collection.findOne({});
-      if (sampleDoc) {
-        if (sampleDoc.embeddingVector) {
-          embeddingFieldPath = 'embeddingVector';
-          console.log('Found existing embeddingVector field, using that for index');
-        } else if (sampleDoc.embedding) {
-          embeddingFieldPath = 'embedding';
-          console.log('Found existing embedding field, using that for index');
-        } else if (sampleDoc.plot_embedding) {
-          embeddingFieldPath = 'plot_embedding';
-          console.log('Found existing plot_embedding field, using that for index');
-        }
+    const sampleDoc = await collection.findOne({});
+    if (sampleDoc) {
+      if (sampleDoc.embeddingVector) {
+        embeddingFieldPath = 'embeddingVector';
+        console.log('Found existing embeddingVector field, using that for index');
+      } else if (sampleDoc.embedding) {
+        embeddingFieldPath = 'embedding';
+        console.log('Found existing embedding field, using that for index');
+      } else if (sampleDoc.plot_embedding) {
+        embeddingFieldPath = 'plot_embedding';
+        console.log('Found existing plot_embedding field, using that for index');
       }
+    } else {
+      console.log('No existing documents found, using default embedding field: embedding');
     }
     
     // Create vector search index

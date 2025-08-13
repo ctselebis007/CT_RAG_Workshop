@@ -270,7 +270,6 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
                 <Brain className="w-6 h-6 text-blue-600" />
                 <div>
                   <div className="font-medium text-gray-900">OpenAI</div>
-                  <div className="text-sm text-gray-500">GPT & Embeddings</div>
                 </div>
               </div>
             </div>
@@ -295,7 +294,6 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
                 <Zap className="w-6 h-6 text-purple-600" />
                 <div>
                   <div className="font-medium text-gray-900">VoyageAI</div>
-                  <div className="text-sm text-gray-500">Specialized Embeddings</div>
                 </div>
               </div>
             </div>

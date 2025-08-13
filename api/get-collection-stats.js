@@ -40,6 +40,32 @@ export default async function handler(req, res) {
       }
     ]).toArray();
     
+    // Check embedding dimensions to determine the API provider used
+    let embeddingDimensions = null;
+    let embeddingFieldPath = null;
+    
+    // Check for different embedding field names and get dimensions
+    const sampleDoc = await collection.findOne({
+      $or: [
+        { embedding: { $exists: true } },
+        { embeddingVector: { $exists: true } },
+        { plot_embedding: { $exists: true } }
+      ]
+    });
+    
+    if (sampleDoc) {
+      if (sampleDoc.embedding && Array.isArray(sampleDoc.embedding)) {
+        embeddingDimensions = sampleDoc.embedding.length;
+        embeddingFieldPath = 'embedding';
+      } else if (sampleDoc.embeddingVector && Array.isArray(sampleDoc.embeddingVector)) {
+        embeddingDimensions = sampleDoc.embeddingVector.length;
+        embeddingFieldPath = 'embeddingVector';
+      } else if (sampleDoc.plot_embedding && Array.isArray(sampleDoc.plot_embedding)) {
+        embeddingDimensions = sampleDoc.plot_embedding.length;
+        embeddingFieldPath = 'plot_embedding';
+      }
+    }
+    
     await mongoClient.close();
     
     res.status(200).json({
@@ -48,6 +74,8 @@ export default async function handler(req, res) {
         totalDocuments,
         totalChunks,
         uniqueSources,
+        embeddingDimensions,
+        embeddingFieldPath,
         documentTypes: documentTypes.reduce((acc, type) => {
           acc[type._id || 'UNKNOWN'] = type.count;
           return acc;

@@ -36,6 +36,13 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
   const [isCreatingIndex, setIsCreatingIndex] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [indexStatus, setIndexStatus] = useState<string>('');
+  const [dimensionMismatch, setDimensionMismatch] = useState<{
+    show: boolean;
+    currentDimensions: number;
+    expectedDimensions: number;
+    currentProvider: string;
+    suggestedProvider: string;
+  } | null>(null);
 
   // Embedding model configurations
   const embeddingModels = {
@@ -96,6 +103,9 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
       openaiApiKey: undefined,
       voyageaiApiKey: undefined
     }));
+    
+    // Check for dimension mismatch when provider changes
+    checkDimensionMismatch(provider);
   };
 
   const createCollectionAndIndex = async (configData: RAGConfig, reset: boolean = false): Promise<boolean> => {
@@ -138,6 +148,55 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
       console.error('Error creating collection and vector index:', error);
       setIndexStatus(`Error creating collection and index: ${error.message}`);
       return false;
+    }
+  };
+
+  const checkDimensionMismatch = async (provider?: 'openai' | 'voyageai') => {
+    const currentProvider = provider || formData.apiProvider;
+    
+    if (!formData.mongodbUri || !formData.databaseName || !formData.collectionName) {
+      setDimensionMismatch(null);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/get-collection-stats', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          mongodbUri: formData.mongodbUri,
+          databaseName: formData.databaseName,
+          collectionName: formData.collectionName
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.stats.embeddingDimensions) {
+          const currentDimensions = result.stats.embeddingDimensions;
+          const expectedDimensions = currentProvider === 'voyageai' ? 1024 : 1536;
+          
+          if (currentDimensions !== expectedDimensions) {
+            const suggestedProvider = currentDimensions === 1024 ? 'voyageai' : 'openai';
+            setDimensionMismatch({
+              show: true,
+              currentDimensions,
+              expectedDimensions,
+              currentProvider,
+              suggestedProvider
+            });
+          } else {
+            setDimensionMismatch(null);
+          }
+        } else {
+          setDimensionMismatch(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking dimension mismatch:', error);
+      setDimensionMismatch(null);
     }
   };
 
@@ -200,6 +259,12 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+    
+    // Check dimension mismatch when collection details change
+    if (field === 'mongodbUri' || field === 'databaseName' || field === 'collectionName') {
+      // Debounce the check to avoid too many API calls
+      setTimeout(() => checkDimensionMismatch(), 1000);
     }
   };
 

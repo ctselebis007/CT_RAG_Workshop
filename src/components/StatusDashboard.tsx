@@ -14,6 +14,8 @@ interface CollectionStats {
   totalDocuments: number;
   totalChunks: number;
   uniqueSources: string[];
+  embeddingDimensions: number | null;
+  embeddingFieldPath: string | null;
   documentTypes: Record<string, number>;
 }
 

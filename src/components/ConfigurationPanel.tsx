@@ -59,16 +59,19 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
       newErrors.mongodbUri = 'Invalid MongoDB URI format';
     }
     
-    // Validate API key based on selected provider
+    // Always require OpenAI API key (used for LLM responses)
+    if (!formData.openaiApiKey.trim()) {
+      newErrors.openaiApiKey = 'OpenAI API key is required for LLM responses';
+    } else if (!formData.openaiApiKey.startsWith('sk-')) {
+      newErrors.openaiApiKey = 'Invalid OpenAI API key format';
+    }
+    
+    // Validate VoyageAI API key if VoyageAI is selected as embedding provider
     if (formData.apiProvider === 'openai') {
-      if (!formData.openaiApiKey.trim()) {
-        newErrors.openaiApiKey = 'OpenAI API key is required';
-      } else if (!formData.openaiApiKey.startsWith('sk-')) {
-        newErrors.openaiApiKey = 'Invalid OpenAI API key format';
-      }
+      // OpenAI API key already validated above
     } else if (formData.apiProvider === 'voyageai') {
       if (!formData.voyageaiApiKey.trim()) {
-        newErrors.voyageaiApiKey = 'VoyageAI API key is required';
+        newErrors.voyageaiApiKey = 'VoyageAI API key is required for embeddings';
       } else if (!formData.voyageaiApiKey.startsWith('pa-')) {
         newErrors.voyageaiApiKey = 'Invalid VoyageAI API key format (should start with pa-)';
       }
@@ -97,10 +100,9 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
       apiProvider: provider,
       embeddingModel: defaultModel
     }));
-    // Clear any existing API key errors when switching providers
+    // Clear VoyageAI API key errors when switching providers (but keep OpenAI errors since it's always required)
     setErrors(prev => ({ 
       ...prev, 
-      openaiApiKey: undefined,
       voyageaiApiKey: undefined
     }));
     
@@ -419,7 +421,78 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
         </div>
 
         {/* API Key Input - Dynamic based on provider */}
-        <div>
+        <div className="space-y-6">
+          {/* OpenAI API Key - Always Required */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              OpenAI API Key
+              <span className="text-sm text-gray-500 ml-2">(Required for LLM responses)</span>
+            </label>
+            <div className="relative">
+              <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type={showKeys.openai ? 'text' : 'password'}
+                value={formData.openaiApiKey}
+                onChange={(e) => handleInputChange('openaiApiKey', e.target.value)}
+                className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                  errors.openaiApiKey ? 'border-red-300' : 'border-gray-300'
+                }`}
+                placeholder="sk-..."
+              />
+              <button
+                type="button"
+                onClick={() => setShowKeys(prev => ({ ...prev, openai: !prev.openai }))}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showKeys.openai ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+            {errors.openaiApiKey && (
+              <p className="text-red-500 text-sm mt-1">{errors.openaiApiKey}</p>
+            )}
+            <p className="text-gray-500 text-sm mt-1">
+              Used for generating AI responses to your questions.
+            </p>
+          </div>
+
+          {/* VoyageAI API Key - Only when VoyageAI is selected */}
+          {formData.apiProvider === 'voyageai' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                VoyageAI API Key
+                <span className="text-sm text-gray-500 ml-2">(Required for embeddings)</span>
+              </label>
+              <div className="relative">
+                <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type={showKeys.voyageai ? 'text' : 'password'}
+                  value={formData.voyageaiApiKey}
+                  onChange={(e) => handleInputChange('voyageaiApiKey', e.target.value)}
+                  className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                    errors.voyageaiApiKey ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="pa-..."
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowKeys(prev => ({ ...prev, voyageai: !prev.voyageai }))}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showKeys.voyageai ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+              {errors.voyageaiApiKey && (
+                <p className="text-red-500 text-sm mt-1">{errors.voyageaiApiKey}</p>
+              )}
+              <p className="text-gray-500 text-sm mt-1">
+                Used for generating document embeddings and vector search.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Remove the old single API key input section */}
+        <div className="hidden">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             {formData.apiProvider === 'openai' ? 'OpenAI API Key' : 'VoyageAI API Key'}
           </label>

@@ -15,12 +15,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { mongodbUri, databaseName, collectionName, reset = false } = req.body;
+    const { mongodbUri, databaseName, collectionName, apiProvider = 'openai', reset = false } = req.body;
     
     const mongoClient = new MongoClient(mongodbUri);
     await mongoClient.connect();
     
     const db = mongoClient.db(databaseName);
+    
+    // Determine vector dimensions based on API provider
+    const numDimensions = apiProvider === 'voyageai' ? 1024 : 1536;
+    console.log(`🎯 Using ${numDimensions} dimensions for ${apiProvider} embeddings`);
     
     // FIRST: Check for existing embedding field BEFORE any collection operations
     let embeddingFieldPath = 'embedding'; // default
@@ -96,7 +100,7 @@ export default async function handler(req, res) {
           {
             type: 'vector',
             path: embeddingFieldPath,
-            numDimensions: 1536,
+            numDimensions: numDimensions,
             similarity: 'cosine'
           }
         ]
@@ -105,10 +109,10 @@ export default async function handler(req, res) {
     
     try {
       await collection.createSearchIndex(indexDefinition);
-      console.log(`🎉 Vector search index created successfully with field path: ${embeddingFieldPath}`);
+      console.log(`🎉 Vector search index created successfully with field path: ${embeddingFieldPath} and ${numDimensions} dimensions`);
     } catch (error) {
       if (error.codeName === 'IndexAlreadyExists') {
-        console.log(`ℹ️  Vector search index already exists with field path: ${embeddingFieldPath}`);
+        console.log(`ℹ️  Vector search index already exists with field path: ${embeddingFieldPath} and ${numDimensions} dimensions`);
       } else {
         throw error;
       }
@@ -119,8 +123,8 @@ export default async function handler(req, res) {
     res.status(200).json({ 
       success: true, 
       message: reset 
-        ? `Collection reset and vector search index created successfully with field: ${embeddingFieldPath}`
-        : `Collection and vector search index created successfully with field: ${embeddingFieldPath}`,
+        ? `Collection reset and vector search index created successfully with field: ${embeddingFieldPath} (${numDimensions}D)`
+        : `Collection and vector search index created successfully with field: ${embeddingFieldPath} (${numDimensions}D)`,
       embeddingField: embeddingFieldPath
     });
     

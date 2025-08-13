@@ -210,7 +210,7 @@ export default async function handler(req, res) {
         // Process each document chunk
         const chunksWithEmbeddings = await Promise.all(
           splitDocs.map(async (doc, index) => {
-            const embedding = await generateEmbedding(doc.pageContent, config.openaiApiKey);
+            const embedding = await generateEmbedding(doc.pageContent, config);
             
             return {
               text: doc.pageContent,
@@ -382,26 +382,49 @@ async function extractPowerPointText(filePath) {
   });
 }
 
-async function generateEmbedding(text, apiKey) {
+async function generateEmbedding(text, config) {
   try {
-    const response = await fetch('https://api.openai.com/v1/embeddings', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'text-embedding-ada-002',
-        input: text,
-      }),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.statusText}`);
+    if (config.apiProvider === 'voyageai') {
+      // VoyageAI API call
+      const response = await fetch('https://api.voyageai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.voyageaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: config.embeddingModel,
+          input: [text],
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`VoyageAI API error: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data.data[0].embedding;
+    } else {
+      // OpenAI API call (default)
+      const response = await fetch('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: config.embeddingModel,
+          input: text,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data.data[0].embedding;
     }
-    
-    const data = await response.json();
-    return data.data[0].embedding;
   } catch (error) {
     console.error('Error generating embedding:', error);
     throw error;

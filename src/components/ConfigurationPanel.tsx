@@ -111,6 +111,7 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
           mongodbUri: configData.mongodbUri,
           databaseName: configData.databaseName,
           collectionName: configData.collectionName,
+          apiProvider: configData.apiProvider,
           reset: reset
         }),
       });

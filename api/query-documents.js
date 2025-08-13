@@ -40,7 +40,7 @@ export default async function handler(req, res) {
     const { question, config } = req.body;
     
     // Generate embedding for the question
-    const questionEmbedding = await generateEmbedding(question, config.openaiApiKey);
+    const questionEmbedding = await generateEmbedding(question, config);
     
     // Connect to MongoDB and perform vector search
     const mongoClient = new MongoClient(config.mongodbUri);
@@ -85,7 +85,7 @@ export default async function handler(req, res) {
     }
     
     // Generate response using OpenAI with standard prompt only
-    const llmResponse = await generateLLMResponse(question, retrievedContext, config.openaiApiKey);
+    const llmResponse = await generateLLMResponse(question, retrievedContext, config);
     
     res.status(200).json({
       success: true,
@@ -106,28 +106,56 @@ export default async function handler(req, res) {
   }
 }
 
-async function generateEmbedding(text, apiKey) {
-  const response = await fetch('https://api.openai.com/v1/embeddings', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'text-embedding-ada-002',
-      input: text,
-    }),
-  });
-  
-  if (!response.ok) {
-    throw new Error(`OpenAI API error: ${response.statusText}`);
+async function generateEmbedding(text, config) {
+  try {
+    if (config.apiProvider === 'voyageai') {
+      // VoyageAI API call
+      const response = await fetch('https://api.voyageai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.voyageaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: config.embeddingModel,
+          input: [text],
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`VoyageAI API error: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data.data[0].embedding;
+    } else {
+      // OpenAI API call (default)
+      const response = await fetch('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: config.embeddingModel,
+          input: text,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data.data[0].embedding;
+    }
+  } catch (error) {
+    console.error('Error generating embedding:', error);
+    throw error;
   }
-  
-  const data = await response.json();
-  return data.data[0].embedding;
 }
 
-async function generateLLMResponse(question, context, apiKey) {
+async function generateLLMResponse(question, context, config) {
   // Use only standard prompt
   const prompt = `Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
 
@@ -137,10 +165,11 @@ Question: ${question}
 
 Helpful Answer:`;
   
+  // Always use OpenAI for LLM response generation
   const response = await fetch('https://api.openai.com/v1/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${apiKey}`,
+      'Authorization': `Bearer ${config.openaiApiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({

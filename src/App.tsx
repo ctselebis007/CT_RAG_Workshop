@@ -35,13 +35,9 @@ function App() {
     setCollectionStats(stats);
   };
 
-  // Calculate total stats from both local documents and collection stats
-  const localTotalChunks = documents.reduce((sum, doc) => sum + doc.chunks.length, 0);
-  const localTotalDocuments = documents.length;
-  
-  // Use the higher of collection stats or local stats to ensure we show the most current data
-  const totalDocuments = Math.max(collectionStats.totalDocuments, localTotalDocuments);
-  const totalChunks = Math.max(collectionStats.totalChunks, localTotalChunks);
+  // Use collection stats as the primary source of truth, fallback to local stats only if no collection stats
+  const totalDocuments = collectionStats.totalDocuments > 0 ? collectionStats.totalDocuments : documents.length;
+  const totalChunks = collectionStats.totalChunks > 0 ? collectionStats.totalChunks : documents.reduce((sum, doc) => sum + doc.chunks.length, 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-teal-50">

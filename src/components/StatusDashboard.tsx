@@ -94,17 +94,16 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({
 
   // Update parent when local documents change (but only if we don't have collection stats)
   useEffect(() => {
-    if (onStatsUpdate && !collectionStats) {
+    if (onStatsUpdate && (!collectionStats || (collectionStats.totalDocuments === 0 && collectionStats.totalChunks === 0))) {
       onStatsUpdate({
         totalDocuments: localTotalDocuments,
         totalChunks: localTotalChunks
       });
     }
-  }, [localTotalDocuments, localTotalChunks, collectionStats, onStatsUpdate]);
 
   // Use collection stats if available, otherwise fall back to local stats
-  const displayTotalDocuments = collectionStats?.totalDocuments ?? localTotalDocuments;
-  const displayTotalChunks = collectionStats?.totalChunks ?? localTotalChunks;
+  const displayTotalDocuments = (collectionStats?.totalDocuments && collectionStats.totalDocuments > 0) ? collectionStats.totalDocuments : localTotalDocuments;
+  const displayTotalChunks = (collectionStats?.totalChunks && collectionStats.totalChunks > 0) ? collectionStats.totalChunks : localTotalChunks;
   
   // Update recent processing stats when documents change
   useEffect(() => {

@@ -1,6 +1,6 @@
 CT_RAG_Workshop
 
-We will leverage the following to build a RAG App do ingest files (PDF, TXT, CSV, DOC, DOCX, XLS, XLSX, PPTX) and allow the user to ask Questions in a Q&A.
+We will leverage the following to build a RAG App to ingest the following file types (PDF, TXT, CSV, DOC, DOCX, XLS, XLSX, PPTX) and allow the user to ask Questions.
 - MongoDB Atlas as a Database Store & Vector store
 - OpenAI as embedding model and LLM
 - VoyageAI as an embedding model option

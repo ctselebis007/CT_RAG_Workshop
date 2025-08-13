@@ -13,6 +13,11 @@ function App() {
 
   const handleConfigSave = (newConfig: RAGConfig) => {
     setConfig(newConfig);
+    // Force stats refresh after config save
+    setTimeout(() => {
+      // This will trigger the StatusDashboard to fetch fresh stats
+      setCollectionStats({ totalDocuments: 0, totalChunks: 0 });
+    }, 500);
   };
 
   const handleConfigReset = () => {

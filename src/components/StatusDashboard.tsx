@@ -76,7 +76,11 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({
               totalChunks: result.stats.totalChunks
             });
           }
+        } else {
+          console.log('Failed to fetch collection stats:', result);
         }
+      } else {
+        console.log('Failed to fetch collection stats - HTTP error:', response.status);
       }
     } catch (error) {
       console.error('Error fetching collection stats:', error);
@@ -96,6 +100,17 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({
       }
     }
   }, [config]);
+
+  // Also fetch stats when config changes (including when first saved)
+  useEffect(() => {
+    if (config) {
+      // Small delay to ensure MongoDB operations are complete
+      const timer = setTimeout(() => {
+        fetchCollectionStats();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [config?.mongodbUri, config?.databaseName, config?.collectionName]);
 
   // Update parent when local documents change (but only if we don't have collection stats)
   useEffect(() => {

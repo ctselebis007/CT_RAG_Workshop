@@ -90,6 +90,16 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
 
   // Check if system is ready for questions - use totalChunks as the primary indicator
   const isSystemReady = isConfigured && totalChunks > 0;
+  
+  // Debug logging to help troubleshoot
+  console.log('QA Interface Status:', {
+    isConfigured,
+    totalDocuments,
+    totalChunks,
+    isSystemReady,
+    hasDocuments
+  });
+  
   const isDisabled = !isSystemReady || isLoading;
 
   return (

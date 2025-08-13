@@ -22,8 +22,8 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
     mongodbUri: config?.mongodbUri || '',
     openaiApiKey: config?.openaiApiKey || '',
     voyageaiApiKey: config?.voyageaiApiKey || '',
-    apiProvider: config?.apiProvider || 'openai',
-    embeddingModel: config?.embeddingModel || 'text-embedding-ada-002',
+    apiProvider: config?.apiProvider || 'voyageai',
+    embeddingModel: config?.embeddingModel || 'voyage-3.5',
     databaseName: config?.databaseName || 'rag_demo',
     collectionName: config?.collectionName || ''
   });

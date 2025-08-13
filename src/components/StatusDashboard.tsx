@@ -209,7 +209,7 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({
               <span className="text-green-600 font-medium">Connected</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">OpenAI</span>
+              <span className="text-gray-600">{config.apiProvider === 'voyageai' ? 'VoyageAI' : 'OpenAI'}</span>
               <span className="text-green-600 font-medium">API Key Set</span>
             </div>
             <div className="flex items-center justify-between">

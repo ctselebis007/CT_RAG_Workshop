@@ -250,31 +250,7 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
           <label className="block text-sm font-medium text-gray-700 mb-3">
             API Provider
           </label>
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div 
-              className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all ${
-                formData.apiProvider === 'openai' 
-                  ? 'border-blue-500 bg-blue-50' 
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-              onClick={() => handleApiProviderChange('openai')}
-            >
-              <div className="flex items-center gap-3">
-                <input
-                  type="radio"
-                  name="apiProvider"
-                  value="openai"
-                  checked={formData.apiProvider === 'openai'}
-                  onChange={() => handleApiProviderChange('openai')}
-                  className="text-blue-600 focus:ring-blue-500"
-                />
-                <Brain className="w-6 h-6 text-blue-600" />
-                <div>
-                  <div className="font-medium text-gray-900">OpenAI</div>
-                </div>
-              </div>
-            </div>
-            
+          <div className="space-y-3 mb-4">
             <div 
               className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all ${
                 formData.apiProvider === 'voyageai' 
@@ -295,6 +271,30 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
                 <Zap className="w-6 h-6 text-purple-600" />
                 <div>
                   <div className="font-medium text-gray-900">VoyageAI</div>
+                </div>
+              </div>
+            </div>
+            
+            <div 
+              className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all ${
+                formData.apiProvider === 'openai' 
+                  ? 'border-blue-500 bg-blue-50' 
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+              onClick={() => handleApiProviderChange('openai')}
+            >
+              <div className="flex items-center gap-3">
+                <input
+                  type="radio"
+                  name="apiProvider"
+                  value="openai"
+                  checked={formData.apiProvider === 'openai'}
+                  onChange={() => handleApiProviderChange('openai')}
+                  className="text-blue-600 focus:ring-blue-500"
+                />
+                <Brain className="w-6 h-6 text-blue-600" />
+                <div>
+                  <div className="font-medium text-gray-900">OpenAI</div>
                 </div>
               </div>
             </div>

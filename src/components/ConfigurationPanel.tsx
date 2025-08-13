@@ -421,110 +421,73 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
         </div>
 
         {/* API Key Input - Dynamic based on provider */}
-        <div className="space-y-6">
-          {/* OpenAI API Key - Always Required */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              OpenAI API Key
-              <span className="text-sm text-gray-500 ml-2">(Required for LLM responses)</span>
-            </label>
-            <div className="relative">
-              <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type={showKeys.openai ? 'text' : 'password'}
-                value={formData.openaiApiKey}
-                onChange={(e) => handleInputChange('openaiApiKey', e.target.value)}
-                className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                  errors.openaiApiKey ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="sk-..."
-              />
-              <button
-                type="button"
-                onClick={() => setShowKeys(prev => ({ ...prev, openai: !prev.openai }))}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showKeys.openai ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-            </div>
-            {errors.openaiApiKey && (
-              <p className="text-red-500 text-sm mt-1">{errors.openaiApiKey}</p>
-            )}
-            <p className="text-gray-500 text-sm mt-1">
-              Used for generating AI responses to your questions.
-            </p>
-          </div>
-
-          {/* VoyageAI API Key - Only when VoyageAI is selected */}
-          {formData.apiProvider === 'voyageai' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                VoyageAI API Key
-                <span className="text-sm text-gray-500 ml-2">(Required for embeddings)</span>
-              </label>
-              <div className="relative">
-                <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type={showKeys.voyageai ? 'text' : 'password'}
-                  value={formData.voyageaiApiKey}
-                  onChange={(e) => handleInputChange('voyageaiApiKey', e.target.value)}
-                  className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                    errors.voyageaiApiKey ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="pa-..."
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowKeys(prev => ({ ...prev, voyageai: !prev.voyageai }))}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showKeys.voyageai ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-              {errors.voyageaiApiKey && (
-                <p className="text-red-500 text-sm mt-1">{errors.voyageaiApiKey}</p>
-              )}
-              <p className="text-gray-500 text-sm mt-1">
-                Used for generating document embeddings and vector search.
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Remove the old single API key input section */}
-        <div className="hidden">
+        {/* OpenAI API Key - Always Required */}
+        <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            {formData.apiProvider === 'openai' ? 'OpenAI API Key' : 'VoyageAI API Key'}
+            OpenAI API Key
+            <span className="text-sm text-gray-500 ml-2">(Required for LLM responses)</span>
           </label>
           <div className="relative">
             <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
-              type={showKeys[formData.apiProvider] ? 'text' : 'password'}
-              value={formData.apiProvider === 'openai' ? formData.openaiApiKey : formData.voyageaiApiKey}
-              onChange={(e) => handleInputChange(
-                formData.apiProvider === 'openai' ? 'openaiApiKey' : 'voyageaiApiKey', 
-                e.target.value
-              )}
+              type={showKeys.openai ? 'text' : 'password'}
+              value={formData.openaiApiKey}
+              onChange={(e) => handleInputChange('openaiApiKey', e.target.value)}
               className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                (formData.apiProvider === 'openai' ? errors.openaiApiKey : errors.voyageaiApiKey) 
-                  ? 'border-red-300' : 'border-gray-300'
+                errors.openaiApiKey ? 'border-red-300' : 'border-gray-300'
               }`}
-              placeholder={formData.apiProvider === 'openai' ? 'sk-...' : 'pa-...'}
+              placeholder="sk-..."
             />
             <button
               type="button"
-              onClick={() => setShowKeys(prev => ({ ...prev, [formData.apiProvider]: !prev[formData.apiProvider] }))}
+              onClick={() => setShowKeys(prev => ({ ...prev, openai: !prev.openai }))}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
             >
-              {showKeys[formData.apiProvider] ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              {showKeys.openai ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
           </div>
-          {(formData.apiProvider === 'openai' ? errors.openaiApiKey : errors.voyageaiApiKey) && (
-            <p className="text-red-500 text-sm mt-1">
-              {formData.apiProvider === 'openai' ? errors.openaiApiKey : errors.voyageaiApiKey}
-            </p>
+          {errors.openaiApiKey && (
+            <p className="text-red-500 text-sm mt-1">{errors.openaiApiKey}</p>
           )}
+          <p className="text-gray-500 text-sm mt-1">
+            Used for generating AI responses to your questions.
+          </p>
         </div>
+
+        {/* VoyageAI API Key - Only when VoyageAI is selected */}
+        {formData.apiProvider === 'voyageai' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              VoyageAI API Key
+              <span className="text-sm text-gray-500 ml-2">(Required for embeddings)</span>
+            </label>
+            <div className="relative">
+              <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type={showKeys.voyageai ? 'text' : 'password'}
+                value={formData.voyageaiApiKey}
+                onChange={(e) => handleInputChange('voyageaiApiKey', e.target.value)}
+                className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                  errors.voyageaiApiKey ? 'border-red-300' : 'border-gray-300'
+                }`}
+                placeholder="pa-..."
+              />
+              <button
+                type="button"
+                onClick={() => setShowKeys(prev => ({ ...prev, voyageai: !prev.voyageai }))}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showKeys.voyageai ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+            {errors.voyageaiApiKey && (
+              <p className="text-red-500 text-sm mt-1">{errors.voyageaiApiKey}</p>
+            )}
+            <p className="text-gray-500 text-sm mt-1">
+              Used for generating document embeddings and vector search.
+            </p>
+          </div>
+        )}
 
         {/* Embedding Model Selection */}
         <div>

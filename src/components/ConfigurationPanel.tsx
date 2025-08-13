@@ -292,7 +292,7 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
               <div className="text-red-700 text-sm space-y-2">
                 <p>
                   <strong>Issue:</strong> Your collection contains embeddings with <strong>{dimensionMismatch.currentDimensions} dimensions</strong>, 
-                  but you've selected <strong>{dimensionMismatch.currentProvider === \'openai' ? 'OpenAI' : 'VoyageAI'}</strong> which uses <strong>{dimensionMismatch.expectedDimensions} dimensions</strong>.
+                  but you've selected <strong>{dimensionMismatch.currentProvider === 'openai' ? 'OpenAI' : 'VoyageAI'}</strong> which uses <strong>{dimensionMismatch.expectedDimensions} dimensions</strong>.
                 </p>
                 <div className="bg-red-100 rounded-lg p-3 mt-3">
                   <p className="font-medium text-red-800 mb-2">🔧 Solutions:</p>

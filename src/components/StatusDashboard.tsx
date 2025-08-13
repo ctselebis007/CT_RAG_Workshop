@@ -25,7 +25,12 @@ interface ProcessingStats {
   chunksCreated: number;
   totalTime: number;
   averageTimePerChunk: number;
+  loadingTime: number;
+  chunkingTime: number;
+  embeddingTime: number;
+  insertionTime: number;
 }
+
 export const StatusDashboard: React.FC<StatusDashboardProps> = ({ 
   config, 
   documents, 
@@ -100,6 +105,7 @@ export const StatusDashboard: React.FC<StatusDashboardProps> = ({
         totalChunks: localTotalChunks
       });
     }
+  }, [localTotalDocuments, localTotalChunks, collectionStats, onStatsUpdate]);
 
   // Use collection stats if available, otherwise fall back to local stats
   const displayTotalDocuments = (collectionStats?.totalDocuments && collectionStats.totalDocuments > 0) ? collectionStats.totalDocuments : localTotalDocuments;

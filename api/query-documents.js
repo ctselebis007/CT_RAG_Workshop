@@ -39,19 +39,40 @@ export default async function handler(req, res) {
   try {
     const { question, config } = req.body;
     
-    // Generate embedding for the question
-    const questionEmbedding = await generateEmbedding(question, config);
-    
-    // Connect to MongoDB and perform vector search
+    // Connect to MongoDB first to check dimensions
     const mongoClient = new MongoClient(config.mongodbUri);
     await mongoClient.connect();
     
     const db = mongoClient.db(config.databaseName);
     const collection = db.collection(config.collectionName);
     
-    // Determine the embedding field path to use
+    // Check for dimension mismatch before generating embedding
     const embeddingFieldPath = await getEmbeddingFieldPath(collection);
     console.log(`Using embedding field path for search: ${embeddingFieldPath}`);
+    
+    // Get a sample document to check dimensions
+    const sampleDoc = await collection.findOne({ [embeddingFieldPath]: { $exists: true } });
+    if (sampleDoc && sampleDoc[embeddingFieldPath]) {
+      const existingDimensions = sampleDoc[embeddingFieldPath].length;
+      const expectedDimensions = config.apiProvider === 'voyageai' ? 1024 : 1536;
+      
+      if (existingDimensions !== expectedDimensions) {
+        await mongoClient.close();
+        return res.status(400).json({
+          success: false,
+          error: `Dimension mismatch: Collection has ${existingDimensions}D embeddings but ${config.apiProvider === 'openai' ? 'OpenAI' : 'VoyageAI'} generates ${expectedDimensions}D embeddings. Please switch to the correct API provider or reset the collection.`,
+          dimensionMismatch: {
+            existing: existingDimensions,
+            expected: expectedDimensions,
+            currentProvider: config.apiProvider,
+            suggestedProvider: existingDimensions === 1024 ? 'voyageai' : 'openai'
+          }
+        });
+      }
+    }
+    
+    // Generate embedding for the question
+    const questionEmbedding = await generateEmbedding(question, config);
     
     // Perform vector search to find the most relevant chunks
     const searchResults = await collection.aggregate([

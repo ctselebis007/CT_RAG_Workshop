@@ -280,6 +280,58 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
         </div>
       </div>
 
+      {/* Dimension Mismatch Warning */}
+      {dimensionMismatch?.show && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <h3 className="text-red-800 font-semibold mb-2">⚠️ Embedding Dimension Mismatch</h3>
+              <div className="text-red-700 text-sm space-y-2">
+                <p>
+                  <strong>Issue:</strong> Your collection contains embeddings with <strong>{dimensionMismatch.currentDimensions} dimensions</strong>, 
+                  but you've selected <strong>{dimensionMismatch.currentProvider === 'openai' ? 'OpenAI' : 'VoyageAI'}</strong> which uses <strong>{dimensionMismatch.expectedDimensions} dimensions</strong>.
+                </p>
+                <div className="bg-red-100 rounded-lg p-3 mt-3">
+                  <p className="font-medium text-red-800 mb-2">🔧 Solutions:</p>
+                  <ul className="list-disc list-inside space-y-1 text-red-700">
+                    <li>
+                      <strong>Switch to {dimensionMismatch.suggestedProvider === 'openai' ? 'OpenAI' : 'VoyageAI'}:</strong> 
+                      {dimensionMismatch.suggestedProvider === 'openai' 
+                        ? ' Use OpenAI (1536 dimensions) to match your existing embeddings'
+                        : ' Use VoyageAI (1024 dimensions) to match your existing embeddings'
+                      }
+                    </li>
+                    <li>
+                      <strong>Reset Collection:</strong> Use "Reset Configuration" to clear existing embeddings and start fresh
+                    </li>
+                    <li>
+                      <strong>Use Different Collection:</strong> Change the collection name to start with a clean collection
+                    </li>
+                  </ul>
+                </div>
+                <div className="flex items-center gap-2 mt-3">
+                  <button
+                    type="button"
+                    onClick={() => handleApiProviderChange(dimensionMismatch.suggestedProvider as 'openai' | 'voyageai')}
+                    className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition-colors"
+                  >
+                    Switch to {dimensionMismatch.suggestedProvider === 'openai' ? 'OpenAI' : 'VoyageAI'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDimensionMismatch(null)}
+                    className="text-red-600 px-3 py-1 rounded text-sm hover:bg-red-100 transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* MongoDB URI */}
         <div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Database, Key, User, Eye, EyeOff, CheckCircle, Loader, AlertCircle, RotateCcw } from 'lucide-react';
+import { Database, Key, User, Eye, EyeOff, CheckCircle, Loader, AlertCircle, RotateCcw, Brain, Zap } from 'lucide-react';
 
 interface ConfigurationPanelProps {
   onConfigSave: (config: RAGConfig) => void;
@@ -10,6 +10,9 @@ interface ConfigurationPanelProps {
 export interface RAGConfig {
   mongodbUri: string;
   openaiApiKey: string;
+  voyageaiApiKey: string;
+  apiProvider: 'openai' | 'voyageai';
+  embeddingModel: string;
   databaseName: string;
   collectionName: string;
 }
@@ -18,17 +21,27 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
   const [formData, setFormData] = useState<RAGConfig>({
     mongodbUri: config?.mongodbUri || '',
     openaiApiKey: config?.openaiApiKey || '',
+    voyageaiApiKey: config?.voyageaiApiKey || '',
+    apiProvider: config?.apiProvider || 'openai',
+    embeddingModel: config?.embeddingModel || 'text-embedding-ada-002',
     databaseName: config?.databaseName || 'rag_demo',
     collectionName: config?.collectionName || ''
   });
   const [showKeys, setShowKeys] = useState({
     mongodb: false,
-    openai: false
+    openai: false,
+    voyageai: false
   });
   const [errors, setErrors] = useState<Partial<RAGConfig>>({});
   const [isCreatingIndex, setIsCreatingIndex] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [indexStatus, setIndexStatus] = useState<string>('');
+
+  // Embedding model configurations
+  const embeddingModels = {
+    openai: ['text-embedding-ada-002'],
+    voyageai: ['voyage-3.5', 'voyage-finance-2', 'voyage-law-2']
+  };
 
   const validateForm = (): boolean => {
     const newErrors: Partial<RAGConfig> = {};
@@ -39,10 +52,19 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
       newErrors.mongodbUri = 'Invalid MongoDB URI format';
     }
     
-    if (!formData.openaiApiKey.trim()) {
-      newErrors.openaiApiKey = 'OpenAI API key is required';
-    } else if (!formData.openaiApiKey.startsWith('sk-')) {
-      newErrors.openaiApiKey = 'Invalid OpenAI API key format';
+    // Validate API key based on selected provider
+    if (formData.apiProvider === 'openai') {
+      if (!formData.openaiApiKey.trim()) {
+        newErrors.openaiApiKey = 'OpenAI API key is required';
+      } else if (!formData.openaiApiKey.startsWith('sk-')) {
+        newErrors.openaiApiKey = 'Invalid OpenAI API key format';
+      }
+    } else if (formData.apiProvider === 'voyageai') {
+      if (!formData.voyageaiApiKey.trim()) {
+        newErrors.voyageaiApiKey = 'VoyageAI API key is required';
+      } else if (!formData.voyageaiApiKey.startsWith('pa-')) {
+        newErrors.voyageaiApiKey = 'Invalid VoyageAI API key format (should start with pa-)';
+      }
     }
     
     if (!formData.databaseName.trim()) {
@@ -59,6 +81,21 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleApiProviderChange = (provider: 'openai' | 'voyageai') => {
+    const defaultModel = embeddingModels[provider][0];
+    setFormData(prev => ({ 
+      ...prev, 
+      apiProvider: provider,
+      embeddingModel: defaultModel
+    }));
+    // Clear any existing API key errors when switching providers
+    setErrors(prev => ({ 
+      ...prev, 
+      openaiApiKey: undefined,
+      voyageaiApiKey: undefined
+    }));
   };
 
   const createCollectionAndIndex = async (configData: RAGConfig, reset: boolean = false): Promise<boolean> => {
@@ -207,33 +244,124 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ onConfig
           )}
         </div>
 
-        {/* OpenAI API Key */}
+        {/* API Provider Selection */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            API Provider
+          </label>
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div 
+              className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all ${
+                formData.apiProvider === 'openai' 
+                  ? 'border-blue-500 bg-blue-50' 
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+              onClick={() => handleApiProviderChange('openai')}
+            >
+              <div className="flex items-center gap-3">
+                <input
+                  type="radio"
+                  name="apiProvider"
+                  value="openai"
+                  checked={formData.apiProvider === 'openai'}
+                  onChange={() => handleApiProviderChange('openai')}
+                  className="text-blue-600 focus:ring-blue-500"
+                />
+                <Brain className="w-6 h-6 text-blue-600" />
+                <div>
+                  <div className="font-medium text-gray-900">OpenAI</div>
+                  <div className="text-sm text-gray-500">GPT & Embeddings</div>
+                </div>
+              </div>
+            </div>
+            
+            <div 
+              className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all ${
+                formData.apiProvider === 'voyageai' 
+                  ? 'border-purple-500 bg-purple-50' 
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+              onClick={() => handleApiProviderChange('voyageai')}
+            >
+              <div className="flex items-center gap-3">
+                <input
+                  type="radio"
+                  name="apiProvider"
+                  value="voyageai"
+                  checked={formData.apiProvider === 'voyageai'}
+                  onChange={() => handleApiProviderChange('voyageai')}
+                  className="text-purple-600 focus:ring-purple-500"
+                />
+                <Zap className="w-6 h-6 text-purple-600" />
+                <div>
+                  <div className="font-medium text-gray-900">VoyageAI</div>
+                  <div className="text-sm text-gray-500">Specialized Embeddings</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* API Key Input - Dynamic based on provider */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            OpenAI API Key
+            {formData.apiProvider === 'openai' ? 'OpenAI API Key' : 'VoyageAI API Key'}
           </label>
           <div className="relative">
             <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
-              type={showKeys.openai ? 'text' : 'password'}
-              value={formData.openaiApiKey}
-              onChange={(e) => handleInputChange('openaiApiKey', e.target.value)}
+              type={showKeys[formData.apiProvider] ? 'text' : 'password'}
+              value={formData.apiProvider === 'openai' ? formData.openaiApiKey : formData.voyageaiApiKey}
+              onChange={(e) => handleInputChange(
+                formData.apiProvider === 'openai' ? 'openaiApiKey' : 'voyageaiApiKey', 
+                e.target.value
+              )}
               className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                errors.openaiApiKey ? 'border-red-300' : 'border-gray-300'
+                (formData.apiProvider === 'openai' ? errors.openaiApiKey : errors.voyageaiApiKey) 
+                  ? 'border-red-300' : 'border-gray-300'
               }`}
-              placeholder="sk-..."
+              placeholder={formData.apiProvider === 'openai' ? 'sk-...' : 'pa-...'}
             />
             <button
               type="button"
-              onClick={() => setShowKeys(prev => ({ ...prev, openai: !prev.openai }))}
+              onClick={() => setShowKeys(prev => ({ ...prev, [formData.apiProvider]: !prev[formData.apiProvider] }))}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
             >
-              {showKeys.openai ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              {showKeys[formData.apiProvider] ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
           </div>
-          {errors.openaiApiKey && (
-            <p className="text-red-500 text-sm mt-1">{errors.openaiApiKey}</p>
+          {(formData.apiProvider === 'openai' ? errors.openaiApiKey : errors.voyageaiApiKey) && (
+            <p className="text-red-500 text-sm mt-1">
+              {formData.apiProvider === 'openai' ? errors.openaiApiKey : errors.voyageaiApiKey}
+            </p>
           )}
+        </div>
+
+        {/* Embedding Model Selection */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Embedding Model
+          </label>
+          <div className="relative">
+            <Brain className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <select
+              value={formData.embeddingModel}
+              onChange={(e) => handleInputChange('embeddingModel', e.target.value)}
+              className="w-full pl-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
+            >
+              {embeddingModels[formData.apiProvider].map((model) => (
+                <option key={model} value={model}>
+                  {model}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="text-gray-500 text-sm mt-1">
+            {formData.apiProvider === 'openai' 
+              ? 'OpenAI embedding model for generating document vectors.'
+              : 'VoyageAI specialized embedding model with domain-specific optimizations.'
+            }
+          </p>
         </div>
 
         {/* Database Name */}

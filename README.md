@@ -15,9 +15,3 @@ After cloning the repo
 3. Run both front & back dev environment
 
     npm run dev:full
-
-To update the Gihub repo:
-
-    git add .
-    git commit -m "Update Readme.md w/instructions"
-    git push origin main

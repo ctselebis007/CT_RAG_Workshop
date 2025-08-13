@@ -8,6 +8,12 @@ interface QAInterfaceProps {
   config: RAGConfig | null;
   totalDocuments: number;
   totalChunks: number;
+  dimensionMismatch?: {
+    show: boolean;
+    currentDimensions: number;
+    expectedDimensions: number;
+    currentProvider: string;
+  } | null;
 }
 
 interface QAResponse {
@@ -23,7 +29,8 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
   hasDocuments, 
   config,
   totalDocuments,
-  totalChunks
+  totalChunks,
+  dimensionMismatch
 }) => {
   const [question, setQuestion] = useState('');
   const [responses, setResponses] = useState<QAResponse[]>([]);
@@ -89,7 +96,7 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
   };
 
   // Check if system is ready for questions - use totalChunks as the primary indicator
-  const isSystemReady = isConfigured && totalChunks > 0;
+  const isSystemReady = isConfigured && totalChunks > 0 && !dimensionMismatch?.show;
   
   // Debug logging to help troubleshoot
   console.log('QA Interface Status:', {
@@ -97,7 +104,8 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
     totalDocuments,
     totalChunks,
     isSystemReady,
-    hasDocuments
+    hasDocuments,
+    dimensionMismatch
   });
   
   const isDisabled = !isSystemReady || isLoading;
@@ -152,7 +160,7 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
               <div className="text-red-700 text-sm space-y-2">
                 <p>
                   Your collection has <strong>{dimensionMismatch.currentDimensions}D embeddings</strong>, 
-                  but you're using <strong>{dimensionMismatch.currentProvider === \'openai' ? 'OpenAI' : 'VoyageAI'}</strong> 
+                  but you're using <strong>{dimensionMismatch.currentProvider === 'openai' ? 'OpenAI' : 'VoyageAI'}</strong> 
                   which generates <strong>{dimensionMismatch.expectedDimensions}D embeddings</strong>.
                 </p>
                 <p className="font-medium">

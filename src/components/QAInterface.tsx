@@ -152,7 +152,7 @@ export const QAInterface: React.FC<QAInterfaceProps> = ({
               <div className="text-red-700 text-sm space-y-2">
                 <p>
                   Your collection has <strong>{dimensionMismatch.currentDimensions}D embeddings</strong>, 
-                  but you're using <strong>{dimensionMismatch.currentProvider === 'openai' ? 'OpenAI' : 'VoyageAI'}</strong> 
+                  but you're using <strong>{dimensionMismatch.currentProvider === \'openai' ? 'OpenAI' : 'VoyageAI'}</strong> 
                   which generates <strong>{dimensionMismatch.expectedDimensions}D embeddings</strong>.
                 </p>
                 <p className="font-medium">

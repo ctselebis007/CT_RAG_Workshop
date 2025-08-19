@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { mongodbUri, databaseName, collectionName, apiProvider = 'openai', reset = false } = req.body;
+    const { mongodbUri, databaseName, collectionName, apiProvider = 'voyageai', reset = false } = req.body;
     
     const mongoClient = new MongoClient(mongodbUri);
     await mongoClient.connect();
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     const db = mongoClient.db(databaseName);
     
     // Determine vector dimensions based on API provider
-    const numDimensions = apiProvider === 'voyageai' ? 1024 : 1536;
+    const numDimensions = apiProvider === 'openai' ? 1536 : 1024;
     console.log(`🎯 Using ${numDimensions} dimensions for ${apiProvider} embeddings`);
     
     // FIRST: Check for existing embedding field BEFORE any collection operations
